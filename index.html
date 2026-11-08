@@ -3357,10 +3357,14 @@ function cloudSoon(){ if(!CS()) return; clearTimeout(cloudT); cloudT=setTimeout(
 function cloudPut(){ const C=CS(); if(!C||!G) return; try{ const s=JSON.stringify(G), n=Math.ceil(s.length/3800);
   for(let i=0;i<n;i++) C.setItem("g"+i,s.slice(i*3800,(i+1)*3800));
   C.setItem("gn",String(n)); C.setItem("gt",String(G.savedAt||Date.now())); }catch(e){} }
-function cloudPull(){ const C=CS(); if(!C) return; try{ C.getItem("gt",(e,gt)=>{ if(e||!gt) { cloudPut(); return; } const t=+gt, local=+(G&&G.savedAt||0);
-  if(t<=local+5000&&woven()>0){ if(local>t+5000) cloudPut(); return; }
-  C.getItem("gn",(e2,gn)=>{ const n=+gn; if(e2||!n) return; C.getItems(Array.from({length:n},(_,i)=>"g"+i),(e3,v)=>{ if(e3||!v) return; try{ const s=Array.from({length:n},(_,i)=>v["g"+i]||"").join(""), g=JSON.parse(s);
-    if(g&&Array.isArray(g.stars)&&g.stars.filter(Boolean).length>=woven()){ lg("cloud","restore"); noSave=true; localStorage.setItem("uzory-v11",s); try{localStorage.removeItem("uzory-cur")}catch(_){} location.reload(); } }catch(_){} }); }); }); }catch(e){} }
+function cloudPull(){ const C=CS(); if(!C) return; /* 8.11 ночь: исправлено зацикливание. Было: у нового игрока (0 узоров) облачная копия «не хуже» → перезапуск → снова 0 узоров → снова перезапуск, игра мигала и не открывалась.
+   Теперь: берём облачную копию, только если в ней БОЛЬШЕ пройденных узоров, чем на телефоне, и не чаще одного раза за открытие игры. */
+  let once=false; try{ once=!!sessionStorage.getItem("uzory-cr"); }catch(_){}
+  try{ C.getItem("gn",(e2,gn)=>{ const n=+gn; if(e2||!n){ cloudPut(); return; }
+    C.getItems(Array.from({length:n},(_,i)=>"g"+i),(e3,v)=>{ if(e3||!v) return; try{ const s=Array.from({length:n},(_,i)=>v["g"+i]||"").join(""), g=JSON.parse(s);
+      const cs=g&&Array.isArray(g.stars)?g.stars.filter(Boolean).length:0, ls=woven();
+      if(cs>ls&&!once){ try{ sessionStorage.setItem("uzory-cr","1"); }catch(_){} lg("cloud","restore"); noSave=true; localStorage.setItem("uzory-v11",s); try{localStorage.removeItem("uzory-cur")}catch(_){} location.reload(); }
+      else if(ls>=cs) cloudPut(); }catch(_){} }); }); }catch(e){} }
 (function tgInit(){ const q=location.hash+location.search; if(!/tgWebApp/.test(q)&&!window.TelegramWebviewProxy&&!(window.Telegram&&window.Telegram.WebApp)) return;
   const go=()=>{ const W=window.Telegram&&Telegram.WebApp; if(!W) return; try{ W.ready(); W.expand();
     const si=()=>{ const a=W.safeAreaInset||{}, c=W.contentSafeAreaInset||{}; document.documentElement.style.setProperty("--tgTop",((a.top||0)+(c.top||0))+"px"); obaFit(); };
