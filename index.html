@@ -1363,7 +1363,7 @@ let app=null, ready=false;
 let L_bg,L_loom,L_weft,L_bask,L_tubes,L_glow,L_sk,L_ov,L_fx,L_light,L_dust,lampSpr=null,vigSpr=null,warpG=null,motes=[], rugSpr=null, rugTex=null, comb=null, weftG=null, glowG=null, bgSpr=null;
 let SP=[], BK=[], LY=null, curLi=-1, curKey="";
 const R={shown:0,goal:0,front:-1};
-let gen=0; function later(fn,ms){ const gg=gen; setTimeout(()=>{ if(ready&&gg===gen) fn(); },ms); }
+let gen=0; function later(fn,ms){ const gg=gen; gsap.delayedCall(ms/1000,()=>{ if(ready&&gg===gen) fn(); }); } /* 8.11 вечер: на часах GSAP, как и полёты (было setTimeout — при подтормаживании нить и кольцо уходили раньше мотков, мотки «зависали», потом догоняли) */
 let wnSeen=0, niShown=0, pend=[], qPend=[], qCount=0, liftSt={t:-1,run:0};
 
 /* ---------------- утилиты ---------------- */
@@ -1698,15 +1698,16 @@ function idleSk(s,k){ if(!s||s.destroyed||s._idle) return; s._idle=gsap.to(s,{ro
 function stopIdle(s){ if(s&&s._idle){ s._idle.kill(); s._idle=null; if(!s.destroyed) s.rotation=0; } }
 function killRope(s){ const r=s&&s._rope; if(!r) return; s._rope=null; gsap.killTweensOf(r); if(!r.destroyed) r.destroy(); if(!s.destroyed) s.visible=true; }
 function bendRope(r,sag){ if(!r||r.destroyed) return; const n=r.pts.length; r.pts.forEach((p,i)=>{ const u=2*i/(n-1)-1; p.y=sag*r.th*(1-u*u); }); }
+const MVD=.32; /* 8.11 вечер: полёт мотка 0,42 → 0,32 с — быстрые игроки не обгоняют анимацию */
 function fly(s,tx,ty,delay,dur,onLand,arc){
-  if(s._fly){ s._fly.kill(); s._fly=null; } if(s._st){ s._st.kill(); s._st=null; } killRope(s); stopIdle(s);
+  if(s._fly){ s._noSnap=true; s._fly.kill(); s._noSnap=false; s._fly=null; } if(s._st){ s._st.kill(); s._st=null; } killRope(s); stopIdle(s); /* 8.11 вечер: моток в полёте летит дальше с того места, где он сейчас, а не прыгает к старой цели */
   const o={t:0}; let x0,y0,cx,cy;
   L_sk.addChild(s);
   return s._fly=gsap.to(o,{t:1,duration:dur,delay,ease:"sine.inOut",overwrite:false,
     onStart(){ if(s.destroyed){ x0=tx; y0=ty; cx=tx; cy=ty; return; } x0=s.x; y0=s.y; cx=(x0+tx)/2; cy=Math.min(y0,ty)-(arc??70); killRope(s); const r=mkRope(s); if(r){ s._rope=r; s.visible=false; } },
     onUpdate(){ if(s.destroyed){ killRope(s); return; } const t=o.t,u=1-t; s.x=u*u*x0+2*u*t*cx+t*t*tx; s.y=u*u*y0+2*u*t*cy+t*t*ty; const lf=1+.07*Math.sin(t*Math.PI); s.rotation=Math.sin(t*Math.PI)*(tx>x0?.14:-.14); if(s.bs) s.scale.set(s.bs.x*lf,s.bs.y*lf);
       const r=s._rope; if(r&&!r.destroyed){ r.x=s.x; r.y=s.y; r.rotation=s.rotation*.6; bendRope(r,.34*Math.sin(t*Math.PI)); } },
-    onInterrupt(){ s._fly=null; killRope(s); if(s.destroyed) return; s.x=tx; s.y=ty; s.rotation=0; if(s.bs) s.scale.set(s.bs.x,s.bs.y); s.visible=true; },
+    onInterrupt(){ s._fly=null; killRope(s); if(s.destroyed) return; if(s._noSnap){ s.visible=true; return; } s.x=tx; s.y=ty; s.rotation=0; if(s.bs) s.scale.set(s.bs.x,s.bs.y); s.visible=true; },
     onComplete(){ s._fly=null; if(s.destroyed) return; s.rotation=0; if(s.bs) s.scale.set(s.bs.x,s.bs.y);
       const r=s._rope; if(r&&!r.destroyed){ r.rotation=0; r.x=s.x; r.y=s.y+3; const o2={v:-.3}; bendRope(r,o2.v); /* обминается: края свисают, затем выпрямляется и оседает */
         s._rtw=gsap.to(o2,{v:0,duration:.42,ease:"elastic.out(1,.6)",onUpdate:()=>{ if(r.destroyed||s.destroyed){ killRope(s); return; } bendRope(r,o2.v); r.y=s.y+4*(o2.v/-.3); },onComplete:()=>killRope(s)}); }
@@ -1850,31 +1851,31 @@ function syncBasket(){ /* мотки в корзине совпадают с S.b
 function niNext(T){ qCount++; qPend.push(gsap.delayedCall(T,()=>{ qCount=Math.max(0,qCount-1); niShown=Math.min(S.need.length,niShown+1); refreshWeft(); })); }
 function toLoom(grp,c,delay,x0,y0){ const tx=HOOKX, ty=hookC();
   later(()=>thread(x0,y0,tx,ty,DYES[c].hex,.45),delay*1000);
-  grp.forEach((s,k)=>{ fly(s,tx+k*8,ty-6,delay+k*.05,.45,()=>unwindSk(s,c,tx,ty+8,0,k),60); }); }
+  grp.forEach((s,k)=>{ fly(s,tx+k*8,ty-6,delay+k*.05,.36,()=>unwindSk(s,c,tx,ty+8,0,k),60); }); }
 /* 2.11: собранные мотки уходят в очередь станка: по одному летят к крючку (гнутся в полёте) и там сматываются в нить */
-function unravel(grp,c,delay,tx,ty){ const n=grp.length; grp.slice().reverse().forEach((s,k)=>{ const d=delay+k*.1;
+function unravel(grp,c,delay,tx,ty){ const n=grp.length; grp.slice().reverse().forEach((s,k)=>{ const d=delay+k*.07;
     later(()=>{ if(!s.destroyed) thread(s.x,s.y,tx,ty,DYES[c].hex,.45); },d*1000);
-    later(()=>{ if(s.destroyed) return; if(s._fly){ s._fly.progress(1); } killRope(s); fly(s,tx+k*2,ty,0,.42,()=>{ killRope(s); if(s.destroyed) return; fibers(s.x,s.y,DYES[c].hex,4);
+    later(()=>{ if(s.destroyed) return; if(s._fly){ s._fly.progress(1); } killRope(s); fly(s,tx+k*2,ty,0,.34,()=>{ killRope(s); if(s.destroyed) return; fibers(s.x,s.y,DYES[c].hex,4);
       gsap.to(s.scale,{x:s.bs.x*.15,y:s.bs.y*.15,duration:.28,ease:"power1.in",overwrite:true}); gsap.to(s,{alpha:0,duration:.28,onComplete:()=>{ if(!s.destroyed){ gsap.killTweensOf(s.scale); killRope(s); s.destroy(); } }}); },90); },d*1000); });
-  return delay+n*.1+.7; }
+  return delay+n*.07+.6; }
 function deliver(T){ wnSeen++; weaveTo(rugCells(S.li,wnSeen),T); if(loomOn()) niNext(T+.25); }
 function processFX(){ let tc=0;
   while(FX.length){ const e=FX.shift();
     if(e.t==="mv"){ const a=SP[e.i], b=SP[e.j]; if(!a||!b) continue; const b0=b.length; let land=tc;
       if(e.wind) gustFx(COLX(e.i),tubeTopY(e.i),COLX(e.j),tubeTopY(e.j));
       for(let k=0;k<e.n;k++){ const s=a.pop(); if(!s) break; b.push(s); s.cf=e.cols[k]; const p=skPos(e.j,b0+k), d=tc+(e.wind?.25:0)+k*.06, dy=s.c!==s.cf;
-        fly(s,p.x,p.y,d,.42,()=>{ const u=b[b.indexOf(s)-1]; if(u&&!u.destroyed&&u.bs) gsap.fromTo(u.scale,{x:u.bs.x*1.05,y:u.bs.y*.84},{x:u.bs.x,y:u.bs.y,duration:.45,ease:"power2.out"}); play(k?"soft":"land",k?.22:.32,.92+Math.random()*.16); if(s.c!==s.cf) dyeWave(s,s.cf); },e.wind?40:60); land=Math.max(land,d+.42+(dy?.45:0)); }
+        fly(s,p.x,p.y,d,MVD,()=>{ const u=b[b.indexOf(s)-1]; if(u&&!u.destroyed&&u.bs) gsap.fromTo(u.scale,{x:u.bs.x*1.05,y:u.bs.y*.84},{x:u.bs.x,y:u.bs.y,duration:.45,ease:"power2.out"}); play(k?"soft":"land",k?.22:.32,.92+Math.random()*.16); if(s.c!==s.cf) dyeWave(s,s.cf); },e.wind?40:60); land=Math.max(land,d+MVD+(dy?.45:0)); }
       tc=land; }
-    else if(e.t==="cp"){ const grp=SP[e.j]||[]; const c=e.c, x=COLX(e.j), top=tubeTopY(e.j);
-      const ry=BASEY(e.j)-70; later(()=>{ doneRing(x,ry,DYES[c].hex); play("thread",.3,1.05); },(tc+.42)*1000);
-      if(e.dest==="loom"){ SP[e.j]=[]; const te=unravel(grp,c,tc+.55,HOOKX,hookC()); deliver(te-.15); tc=Math.min(te,tc+.75); } /* несколько веретён разом — уходят внахлёст, а не в очередь по одному */
+    else if(e.t==="cp"){ PF.cpT=performance.now(); const grp=SP[e.j]||[]; const c=e.c, x=COLX(e.j), top=tubeTopY(e.j);
+      const ry=BASEY(e.j)-70; later(()=>{ doneRing(x,ry,DYES[c].hex); play("thread",.3,1.05); },(tc+MVD-.04)*1000);
+      if(e.dest==="loom"){ SP[e.j]=[]; const te=unravel(grp,c,tc+MVD+.08,HOOKX,hookC()); deliver(te-.15); tc=Math.min(te,tc+.6); } /* несколько веретён разом — уходят внахлёст, а не в очередь по одному */
       else if(e.dest==="basket"){ SP[e.j]=[]; const bp={x:BSX(e.slot),y:BSY}; const keep=grp[0];
         grp.forEach((s,k)=>{ fly(s,bp.x,bp.y,tc+.7+k*.05,.5,()=>{ if(s!==keep){ gsap.to(s.scale,{x:s.bs.x*.3,y:s.bs.y*.3,duration:.18}); gsap.to(s,{alpha:0,duration:.18,onComplete:()=>s.destroy()}); } else { play("basket",.4); squash(s); } },50);
           gsap.to(s.scale,{x:s.bs.x*.62,y:s.bs.y*.62,delay:tc+.7,duration:.5}); });
         if(keep){ keep.cf=c; BK[e.slot]=keep; } }
-      else if(e.dest==="weave"){ SP[e.j]=[]; later(()=>play("thread",.28),(tc+.55)*1000); const te=unravel(grp,c,tc+.55,RUG.x+RUG.w/2,frontY(R.shown)); deliver(te-.15); tc=Math.min(te,tc+.75); }
+      else if(e.dest==="weave"){ SP[e.j]=[]; later(()=>play("thread",.28),(tc+MVD+.08)*1000); const te=unravel(grp,c,tc+MVD+.08,RUG.x+RUG.w/2,frontY(R.shown)); deliver(te-.15); tc=Math.min(te,tc+.6); }
       else if(e.dest==="stay"){ /* ждёт станка: мотки стягиваются и тихо дышат, а не стоят */ later(()=>grp.forEach((s,k)=>idleSk(s,k)),(tc+.6)*1000); } }
-    else if(e.t==="dB"){ const s=BK.splice(e.bi,1)[0]; if(s){ toLoom([s],e.c,tc+.2,s.x,s.y); } deliver(tc+.75); tc+=1.0; }
+    else if(e.t==="dB"){ const s=BK.splice(e.bi,1)[0]; if(s){ toLoom([s],e.c,tc+.2,s.x,s.y); } deliver(tc+.6); tc+=.8; }
     else if(e.t==="dT"){ const grp=SP[e.j]||[]; SP[e.j]=[]; const te=unravel(grp,e.c,tc+.1,HOOKX,hookC()); deliver(te-.15); tc=te; }
     else if(e.t==="wash"){ if(!SP[e.j]||e.j>=LY.n) return; const n=SP[e.j].length; const p=skPos(e.j,Math.max(0,n-1)); puff(p.x,p.y,0xcfeaff,22); } /* 6.11: белая вода смыла узел */
     else if(e.t==="grow"){ later(()=>{ if(!SP[e.j]||e.j>=LY.n) return; const n=SP[e.j].length; const p=skPos(e.j,Math.max(0,n-1)); puff(p.x,p.y,0x8a63c9,16); play("crawl",.4); },(tc+.3)*1000); }
@@ -1999,6 +2000,11 @@ function applyLite(){ if(!app) return; const on=lite(); if(L_light) L_light.visi
   if(on){ const w=o=>{ if(o.filters) o.filters=null; (o.children||[]).forEach(w); }; w(app.stage); }
   const want=on?1:Math.min(2,(window.devicePixelRatio||1)*Math.max(1,stageScale())); if(!navigator.webdriver&&Math.abs(app.renderer.resolution-want)>.01){ app.renderer.resolution=want; app.renderer.resize(W,H); } }
 const FPS={n:0,t0:0,done:false};
+/* 8.11 вечер: замер плавности на живом телефоне — в статистику уходит событие perf на каждый узор:
+   кадров в секунду, сколько кадров длиннее 100 мс, самый длинный, сколько длинных кадров в 1,5 с после сбора веретена, лёгкая ли графика */
+const PF={n:0,ms:0,l:0,mx:0,cp:0,cpT:0,t:0};
+function perfTick(){ if(view!=="play"||document.hidden) { PF.t=0; return; } const n=performance.now(); if(PF.t){ const d=n-PF.t; if(d<1000){ PF.n++; PF.ms+=d; if(d>100){ PF.l++; if(n-PF.cpT<1500) PF.cp++; } if(d>PF.mx) PF.mx=d; } } PF.t=n; }
+function perfFlush(){ try{ if(PF.n>30&&typeof ev==="function") ev("perf",{fps:Math.round(PF.n*1000/PF.ms),long:PF.l,max:Math.round(PF.mx),cpLong:PF.cp,lite:lite()?1:0,dpr:app&&app.renderer?app.renderer.resolution:0}); }catch(e){} Object.assign(PF,{n:0,ms:0,l:0,mx:0,cp:0,t:0}); }
 function fpsWatch(){ if(FPS.done||navigator.webdriver||!G||G.lite||G.liteAuto||view!=="play"){ return; } const now=performance.now(); if(!FPS.t0){ FPS.t0=now+1500; return; } if(now<FPS.t0) return; FPS.n++;
   if(now-FPS.t0>4000){ FPS.done=true; const f=FPS.n*1000/(now-FPS.t0); G.liteAuto=Math.round(f); if(f<35){ G.lite=true; applyLite(); if(typeof level==="function") level(); setTimeout(()=>{ try{ toast(_S("113s3hb","Включена лёгкая графика — так быстрее. Выключить можно в настройках")); }catch(e){} },300); } try{ saveG(); }catch(e){} } }
 async function init(){
@@ -2020,17 +2026,24 @@ async function init(){
   warpG=new PIXI.Graphics(); L_loom.addChild(warpG);
   comb=new PIXI.Sprite(combTex()); comb.width=RUG.w+16; comb.height=COMBH(); comb.x=RUG.x-8; L_loom.addChild(comb);
   buildLight();
-  ready=true; applyLite(); app.ticker.add(()=>{ fpsWatch(); if(SH&&SH.dirty){ SH.dirty=false; SH.tex.source.update(); } if(!S||curLi<0) return; const T=f=>{ try{ f(); }catch(e){ if(!window.__tkErr){ window.__tkErr=1; console.warn(e); } } }; /* 5.11: сбой одной анимации не должен останавливать сверку мотков */ T(()=>{ if(!SH) drawWeft(); else if(weftG) weftG.clear(); }); T(drawGlow); T(animGust); T(animLight); });
+  ready=true; applyLite(); app.ticker.add(()=>{ fpsWatch(); perfTick(); if(SH&&SH.dirty){ SH.dirty=false; SH.tex.source.update(); } if(!S||curLi<0) return; const T=f=>{ try{ f(); }catch(e){ if(!window.__tkErr){ window.__tkErr=1; console.warn(e); } } }; /* 5.11: сбой одной анимации не должен останавливать сверку мотков */ T(()=>{ if(!SH) drawWeft(); else if(weftG) weftG.clear(); }); T(drawGlow); T(animGust); T(animLight); });
   if(S) level(); if(typeof render==="function") render(); }
 function stageScale(){ return Math.min(innerWidth/W,innerHeight/H); }
 /* новый узор (или перезапуск): всё с нуля */
-function level(){ if(!ready) return; gen++; endShag(); FX.length=0; killPend(); clearQ(); gsap.killTweensOf(R);
+function level(){ if(!ready) return; perfFlush(); gen++; endShag(); FX.length=0; killPend(); clearQ(); gsap.killTweensOf(R);
   SP=[]; BK=[];
   [L_fx,L_sk].forEach(Lr=>Lr.removeChildren().forEach(c=>{ if(c._fly) c._fly.kill(); gsap.killTweensOf(c); if(c.scale) gsap.killTweensOf(c.scale); c.destroy(); }));
   LY=layout(); curLi=S.li; { const P=partOf(S.li); GRID=P.g; MASK=P.x1-P.x0<RC?P.mask:null; } GRID4=s2x(s2x(GRID)); wnSeen=S.wn||0; niShown=S.ni; R.shown=R.goal=rugCells(S.li,wnSeen); R.front=-1; drawRugTex(); placeComb(true);
   WF.c=-2; liftSt={t:-1,run:0}; ovKey=""; curKey=skinKey();
   buildSpindles(); reconcile(false); SP.forEach((arr,t)=>arr.forEach((s,k)=>{ const y=s.y; s.y=y-22; s.alpha=0; gsap.to(s,{y,alpha:1,duration:.38,delay:t*.035+k*.045,ease:"power2.out"}); }));
-  refreshWeft(); drawBasket(); syncOverlays(); }
+  refreshWeft(); drawBasket(); syncOverlays(); warmUp(); }
+/* 8.11 вечер: прогрев — при первом сборе веретена видеокарта впервые собирает кольцо, нить, ворсинки и «верёвку» мотка,
+   на компьютере это давало заметную паузу («мотки зависают, потом идут»). Рисуем их один раз незаметно при старте узора. */
+let warmed=false;
+function warmUp(){ if(warmed||!SP.length) return; warmed=true; try{ const s=SP.find(a=>a&&a.length); const sk=s&&s[s.length-1];
+  doneRing(-200,-200,"#ffffff"); thread(-300,-300,-250,-250,"#ffffff",.2); fibers(-200,-200,"#ffffff",2);
+  if(sk&&!sk.destroyed){ const r=mkRope(sk); if(r){ sk._rope=r; r.alpha=.01; app.renderer.render(app.stage); killRope(sk); } }
+  app.renderer.render(app.stage); }catch(e){} }
 const skinKey=()=>(G.skin||"wood")+"|"+S.tubes.length+"|"+CAP;
 /* после каждого render(): события → мотки, затем сверка */
 function sync(){ if(!ready||!S) return; if(!LY){ level(); return; }
@@ -2123,7 +2136,7 @@ function finishShag(){ if(!SH||SH.fin) return; SH.fin=true; clearInterval(SH.idl
       const cb=sh.cb; setTimeout(()=>{ endShag(); cb&&cb(); },650); }}); }
 function shagAll(){ if(!SH||SH.fin) return; SH.move=performance.now(); finishShag(); }
 function active(on){ if(!app||!ready) return; if(on) app.ticker.start(); else app.ticker.stop(); }
-return {get _fixN(){return fixN},get _SP(){return SP},_skPos:(t,k)=>skPos(t,k),art:ART,bgFor,ambient,toneLike,musicSync,duck,init,sync,level,shear,shagPt,shagAll,shagPct,shagLift,endShag,get shearing(){return !!SH},hitZones,placeTut,markUndo,skURL,play,initSound,active,rosette,get L_fx(){return L_fx},get L_sk(){return L_sk},get app(){return app},get ready(){return ready;},LOADSTAT,applyLite};
+return {perfFlush,get _fixN(){return fixN},get _SP(){return SP},_skPos:(t,k)=>skPos(t,k),art:ART,bgFor,ambient,toneLike,musicSync,duck,init,sync,level,shear,shagPt,shagAll,shagPct,shagLift,endShag,get shearing(){return !!SH},hitZones,placeTut,markUndo,skURL,play,initSound,active,rosette,get L_fx(){return L_fx},get L_sk(){return L_sk},get app(){return app},get ready(){return ready;},LOADSTAT,applyLite};
 })();
 
 
@@ -3439,7 +3452,7 @@ function fldTut(p){ const f=$("obaFld"); if(!f||f.hidden) return;
 /* 3.11 (R7-076): аналитика — каждое действие игрока пишется в очередь событий (localStorage) и пачками уходит на приёмник STAT_URL.
    Без личных данных: случайный номер игрока и номер сессии. Сбой аналитики никогда не ломает игру. */
 const STAT_URL="https://script.google.com/macros/s/AKfycbzQ12w9_v_ASyYJm5CPw8Mp8ImUUYiG_m-bcldBklEimZ8pL_NfkEXKT3fhwDUYCccF/exec"; /* адрес приёмника (Google Apps Script → лист «События»); пусто — события копятся в игре и уходят в «Отчёт для автора» */
-const STAT_VER="v129"; /* 8.11: проверка перед тестерами */
+const STAT_VER="v132"; /* 8.11: проверка перед тестерами */
 const EVK="uzory-evq"; let EVQ=[], evN=0, evSess=Math.random().toString(36).slice(2,8), evT0=Date.now(), lvT0=0, mvT=0;
 try{ EVQ=JSON.parse(localStorage.getItem(EVK)||"[]"); }catch(_){ EVQ=[]; }
 function evPid(){ try{ if(!G.pid){ G.pid=Math.random().toString(36).slice(2,10); saveG(); } return G.pid; }catch(_){ return "?"; } }
@@ -3452,7 +3465,7 @@ function evFlush(beacon){ try{ evSave(); if(!STAT_URL||!EVQ.length||evBusy||(G&&
   evBusy=true; fetch(STAT_URL,{method:"POST",mode:"no-cors",keepalive:body.length<60000,headers:{"Content-Type":"text/plain;charset=utf-8"},body}).then(()=>{ EVQ.splice(0,batch.length); evSave(); evLast=_S("11ha8d5","ушло ")+batch.length+" · "+new Date().toLocaleTimeString().slice(0,5); }).catch(e=>{ evLast=_S("w0gmqf","не уходит: ")+String(e&&e.message||e).slice(0,60); }).finally(()=>{ evBusy=false; }); }catch(e){ evBusy=false; evLast=_S("w0gmqf","не уходит: ")+String(e&&e.message||e).slice(0,60); } }
 let evLast=_S("1vj6s7n","ещё не отправлялось"); /* 4.11: видно в «Сообщить об ошибке» — доходит ли статистика */
 setInterval(()=>evFlush(false),60000); setTimeout(()=>evFlush(false),15000);
-document.addEventListener("visibilitychange",()=>{ try{ if(document.hidden){ ev("hide",{sec:Math.round((Date.now()-evT0)/1000)}); evFlush(true); } else ev("show"); }catch(_){} });
+document.addEventListener("visibilitychange",()=>{ try{ if(document.hidden){ try{ SN.perfFlush&&SN.perfFlush(); }catch(_){} ev("hide",{sec:Math.round((Date.now()-evT0)/1000)}); evFlush(true); } else ev("show"); }catch(_){} });
 /* 8.11: последние ошибки — для «Сообщить об ошибке» */
 const ERRS=[]; const errPush=m=>{ ERRS.push(new Date().toTimeString().slice(0,8)+" "+String(m).slice(0,160)); if(ERRS.length>5) ERRS.shift(); };
 window.addEventListener("error",e=>errPush((e.message||"")+" @"+String(e.filename||"").slice(-30)+":"+(e.lineno||"")));
