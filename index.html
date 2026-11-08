@@ -583,6 +583,8 @@ body.hoz #stage::after{content:"Станок Хозяйки";position:absolute;i
 .oba.scene .scm .mtag{z-index:400}
 .tenI:has(.medI){aspect-ratio:1;width:42px;background:none}.tenI canvas.medI{width:40px;height:40px}
 .obLoad{position:absolute;inset:0;display:grid;place-items:center;color:#f3e7cc;font:600 .9rem var(--ui,inherit);text-shadow:0 1px 3px #000}
+/* 8.11 вечер: «Подстричь всё» заметнее */
+#shearUI .shall{font-size:14px!important;height:40px!important;padding:0 8px!important}
 /* GOKAND · шаг 1 (04.11): только шрифты и цвета по бренд-буку v2. Формы, текстуры и арт не меняются.
    Отключить шаг целиком — убрать строку css/gokand.css из order.txt и шрифты из head.html.
    Бренд-бук v3 (03.11): Ночь #0B1730, Бирюза #237878 / ночью #46B3AE, Медь #B8642E / ночью #C8743A,
@@ -763,8 +765,7 @@ body{padding-top:var(--tgTop,0px)}
 .achs.a3 .a small{-webkit-line-clamp:3;hyphens:auto;overflow-wrap:anywhere}
 .phead{gap:11px}
 /* короткий экран (16:9): картина стоянки и поля — во всю ширину, страница листается, постройки не мельчат */
-@media (max-height:700px){#home[data-pg="st"],#home[data-pg="pl"]{overflow-y:auto}
- #home[data-pg] #oba,#home[data-pg] #obaFld{flex:none;width:100%;height:auto;max-width:100%}}
+/* 8.11 вечер: автор (Telegram на компьютере, окно ~370×595) — стоянка должна помещаться целиком, без прокрутки; правило «во всю ширину с прокруткой» снято */
 /* телефон боком: просьба повернуть (игра сделана для вертикального экрана) */
 #rot{display:none}
 @media (orientation:landscape) and (max-height:500px){#rot{display:flex;position:fixed;inset:0;z-index:99;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#0b1426;color:#f3ebdd;font:600 1.05rem/1.35 var(--ui,sans-serif);text-align:center;padding:24px}
@@ -772,6 +773,17 @@ body{padding-top:var(--tgTop,0px)}
 @keyframes rotHint{0%,30%{transform:rotate(90deg)}60%,100%{transform:rotate(0)}}
 @media (max-width:379px){#heroLine{white-space:normal;line-height:1.15;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}}
 #tabbar button{position:relative}#tabbar .tbN{position:absolute;top:2px;right:calc(50% - 30px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#b8642e;color:#f3ebdd;font:700 11px/18px var(--ui,sans-serif);font-style:normal;text-align:center;box-shadow:0 0 0 2px #0b1426}
+/* 8.11 вечер (Telegram на компьютере, окно ~370×595): короткий экран — нижнее меню и кнопка «Осталось…» тоньше, чтобы картина стоянки была крупнее и всё помещалось */
+@media (max-height:700px){
+ .uiArt .tabbar{padding:2px 8px calc(12px + env(safe-area-inset-bottom,0px))!important}
+ .uiArt .tabbar .tbIn{padding:1px 4px 0;border-width:7px}
+ #tabbar button img{width:30px!important;height:30px!important}
+ #tabbar button{font-size:.7rem!important;padding-top:2px!important;padding-bottom:2px!important}
+ #home[data-pg] #kochBtn{padding:6px 12px!important;font-size:.84rem!important;line-height:1.15!important;min-height:40px}}
+/* окно победы на коротком экране — без прокрутки */
+@media (max-height:700px){.winrug{max-height:17vh;margin-bottom:0}.stamp3{width:70px;margin-top:-10px}#ov .card{gap:7px}#ov .card h2{font-size:1.35rem;margin:0}}
+/* стоянка на коротком экране мельче — невидимая зона касания вокруг построек */
+@media (max-height:700px){#oba .so{position:absolute}#oba .so::after{content:"";position:absolute;inset:-9px -6px}}
 </style>
 
 <div class="app" id="home" hidden>
@@ -2079,7 +2091,7 @@ function endShag(){ if(!SH) return; clearInterval(SH.idle); if(SH.demo) SH.demo.
 function shagPt(px,py){ /* px,py — в координатах сцены */
   if(!SH||SH.fin) return; const now=performance.now(); SH.move=now; if(SH.demo){ SH.demo.kill(); SH.demo=null; }
   const sc=SH.sc; sc.x=px+10; sc.y=py+8; sc.rotation=-.5+Math.sin(now/45)*.18;
-  const p0=SH.last||{x:px,y:py}, d=Math.hypot(px-p0.x,py-p0.y), steps=Math.max(1,Math.ceil(d/4)); const x=SH.x, k=2, BR=15;
+  const p0=SH.last||{x:px,y:py}, d=Math.hypot(px-p0.x,py-p0.y), steps=Math.max(1,Math.ceil(d/4)); const x=SH.x, k=2, BR=24; /* 8.11 вечер: автор — стричь слишком долго: кисть 15→24, конец на 60 % (было 85 %) */
   x.globalCompositeOperation="destination-out";
   for(let i=1;i<=steps;i++){ const qx=p0.x+(px-p0.x)*i/steps-RUG.x, qy=p0.y+(py-p0.y)*i/steps-RUG.y;
     const g=x.createRadialGradient(qx*k,qy*k,0,qx*k,qy*k,BR*k); g.addColorStop(0,"rgba(0,0,0,1)"); g.addColorStop(.7,"rgba(0,0,0,.9)"); g.addColorStop(1,"rgba(0,0,0,0)"); x.fillStyle=g; x.beginPath(); x.arc(qx*k,qy*k,BR*k,0,7); x.fill();
@@ -2088,8 +2100,8 @@ function shagPt(px,py){ /* px,py — в координатах сцены */
   x.globalCompositeOperation="source-over"; SH.dirty=true; SH.last={x:px,y:py};
   const inRug=px>RUG.x&&px<RUG.x+RUG.w&&py>RUG.y&&py<RUG.y+RUG.h;
   if(inRug){ SH.dist+=d; if(SH.dist>9){ SH.dist=0; const gx=Math.min(RC-1,Math.max(0,Math.floor((px-RUG.x)/RUG.cs))), gy=Math.min(RR-1,Math.max(0,Math.floor((py-RUG.y)/RUG.cs))); fibers(px,py,DYES[GRID[gy][gx]].hex,3); }
-    if(now-SH.snipT>125){ SH.snipT=now; play("snip",.28,1.5+Math.random()*.5); gsap.fromTo(sc.scale,{x:sc.scale.x*1.1},{x:sc.scale.x,duration:.12}); try{ if(window.Telegram&&Telegram.WebApp&&Telegram.WebApp.HapticFeedback) Telegram.WebApp.HapticFeedback.impactOccurred("light"); else if(navigator.vibrate) navigator.vibrate(8); }catch(e){} } }
-  if(SH.n>=SGX*SGY*.85) finishShag(); }
+    if(now-SH.snipT>125){ SH.snipT=now; if(now-(SH.sndT||0)>700){ SH.sndT=now; play("snip",.2,.95+Math.random()*.12); } /* 8.11 вечер: звук не накладывается (было 6 копий подряд и ×1,5–2 выше) */ gsap.fromTo(sc.scale,{x:sc.scale.x*1.1},{x:sc.scale.x,duration:.12}); try{ if(window.Telegram&&Telegram.WebApp&&Telegram.WebApp.HapticFeedback) Telegram.WebApp.HapticFeedback.impactOccurred("light"); else if(navigator.vibrate) navigator.vibrate(8); }catch(e){} } }
+  if(SH.n>=SGX*SGY*.6) finishShag(); }
 function fibers(x0,y0,hex,n){ for(let i=0;i<n;i++){ const g=new PIXI.Graphics(); const l=3+Math.random()*5; g.moveTo(0,0).quadraticCurveTo(l*.5,(Math.random()-.5)*3,l,0).stroke({width:1.1,color:num(hex),alpha:.95,cap:"round"}); g.x=x0+(Math.random()-.5)*14; g.y=y0+(Math.random()-.5)*8; g.rotation=Math.random()*6.28; L_fx.addChild(g);
   gsap.to(g,{x:g.x+(Math.random()-.5)*60,y:g.y+40+Math.random()*70,rotation:g.rotation+(Math.random()-.5)*6,alpha:0,duration:.8+Math.random()*.6,ease:"power1.in",onComplete:()=>g.destroy()}); } }
 function shagLift(){ if(SH) SH.last=null; }
@@ -2099,7 +2111,7 @@ function finishShag(){ if(!SH||SH.fin) return; SH.fin=true; clearInterval(SH.idl
   gsap.to(sh.sc,{x:sh.rest.x,y:sh.rest.y,rotation:-.5,duration:.35});
   gsap.to(o,{y:RUG.y+RUG.h+20,duration:.5,ease:"power1.inOut",onUpdate(){ const x=sh.x; x.globalCompositeOperation="destination-out"; x.fillStyle="#000"; x.fillRect(0,0,sh.c.width,(o.y-RUG.y)*2); x.globalCompositeOperation="source-over"; sh.tex.source.update();
       if(Math.random()<.5) fibers(RUG.x+Math.random()*RUG.w,o.y,DYES[GRID[Math.min(RR-1,Math.max(0,Math.floor((o.y-RUG.y)/RUG.cs)))][Math.floor(Math.random()*RC)]].hex,2); },
-    onComplete(){ play("win",.4); const fl=new PIXI.Graphics().rect(RUG.x,RUG.y,RUG.w,RUG.h).fill({color:0xfff3d6,alpha:.55}); L_fx.addChild(fl); gsap.to(fl,{alpha:0,duration:.6,onComplete:()=>fl.destroy()});
+    onComplete(){ play("star",.3); /* 8.11 вечер: «ковёр соткан» автору не нравится — тихая «звезда» */ const fl=new PIXI.Graphics().rect(RUG.x,RUG.y,RUG.w,RUG.h).fill({color:0xfff3d6,alpha:.55}); L_fx.addChild(fl); gsap.to(fl,{alpha:0,duration:.6,onComplete:()=>fl.destroy()});
       gsap.fromTo(rugSpr.scale,{y:rugSpr.scale.y*.97},{y:rugSpr.scale.y,duration:.7,ease:"elastic.out(1.1,.4)"}); gsap.fromTo(rugSpr,{y:RUG.y+3},{y:RUG.y,duration:.7,ease:"elastic.out(1.1,.4)"});
       const cb=sh.cb; setTimeout(()=>{ endShag(); cb&&cb(); },650); }}); }
 function shagAll(){ if(!SH||SH.fin) return; SH.move=performance.now(); finishShag(); }
