@@ -791,6 +791,10 @@ body{padding-top:var(--tgTop,0px)}
 @media (max-height:700px){.winrug{max-height:17vh;margin-bottom:0}.stamp3{width:70px;margin-top:-10px}#ov .card{gap:7px}#ov .card h2{font-size:1.35rem;margin:0}}
 /* стоянка на коротком экране мельче — невидимая зона касания вокруг построек */
 @media (max-height:700px){#oba .so{position:absolute}#oba .so::after{content:"";position:absolute;inset:-9px -6px}}
+
+/* 10.11: окна и подсказки не под кнопками Telegram (полный экран) */
+.overlay{padding-top:max(16px,calc(var(--tgTop,0px) + 8px))!important}
+.toast{top:calc(64px + var(--tgTop,0px))!important}
 </style>
 
 <div class="app" id="home" hidden>
@@ -2140,7 +2144,7 @@ return {perfFlush,get _fixN(){return fixN},get _SP(){return SP},_skPos:(t,k)=>sk
 })();
 
 
-function fit(){ const k=Math.min(innerWidth/390,innerHeight/844); $("stage").style.transform=`translate(-50%,-50%) scale(${k})`; if(view==="home") drawScene(); }
+function fit(){ const top=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--tgTop"))||0, h=innerHeight-top, k=Math.min(innerWidth/390,h/844); const st=$("stage"); st.style.top=(top+h/2)+"px"; st.style.transform=`translate(-50%,-50%) scale(${k})`; /* 10.11: в Telegram на весь экран верх станка уходил под кнопки Telegram («Закрыть», «⋯») — шестерёнка открывала меню бота */ if(view==="home") drawScene(); }
 function chip(c,small){ return `<span class="chip${small?" small":""}" style="--c:${DYES[c].hex}" title="${DYES[c][G.lang]}">${DYES[c].g}</span>`; }
 function starsFor(m){ const L=LEVELS[S.li], s3=Math.min(L.star3,L.budget), s2=Math.max(s3,Math.min(L.star2,L.budget+3)); /* 3.11: порог трёх звёзд не выше бюджета; с «+5 ходов» — не больше двух */ const st=m<=s3?3:(m<=s2?2:1); if(S.li<15&&!S.rav) return 3; return S.rav?Math.min(2,st):st; }
 function campOpen(){ return G.maxLi>=UNLOCK_CAMP; }
@@ -2176,7 +2180,7 @@ function hintText(){ hintCard=false;
   if(Object.keys(S.locks).some(k=>lockOn(+k))) parts.push(early&&!S.spread&&!S.wind?tt.hLock:tt.lockShort);
   if(parts.length) return parts.join(" · ");
   if(L.kind==="base") return tt.hBase;
-  if(L.kind==="tight") return tt.hTight;
+  if(L.kind==="tight"&&!S.bsize&&S.tubes.filter(x=>!x.length).length<=1) return tt.hTight; /* 10.11: мама автора, узор 85 — подсказка говорила «одно пустое веретено», а их было два (старая метка «tight» после складов) */
   return S.li===2?tt.hLoom1:tt.hLoom;
 }
 function growCand(){ const out=new Set(); if(!S||!S.spread||S.done||S.lost||S.moves<S.calm) return out; const left=S.spread-(S.moves%S.spread); if(left>2) return out;
@@ -3367,7 +3371,7 @@ function cloudPull(){ const C=CS(); if(!C) return; /* 8.11 ночь: испра�
       else if(ls>=cs) cloudPut(); }catch(_){} }); }); }catch(e){} }
 (function tgInit(){ const q=location.hash+location.search; if(!/tgWebApp/.test(q)&&!window.TelegramWebviewProxy&&!(window.Telegram&&window.Telegram.WebApp)) return;
   const go=()=>{ const W=window.Telegram&&Telegram.WebApp; if(!W) return; try{ W.ready(); W.expand();
-    const si=()=>{ const a=W.safeAreaInset||{}, c=W.contentSafeAreaInset||{}; document.documentElement.style.setProperty("--tgTop",((a.top||0)+(c.top||0))+"px"); obaFit(); };
+    const si=()=>{ const a=W.safeAreaInset||{}, c=W.contentSafeAreaInset||{}; document.documentElement.style.setProperty("--tgTop",((a.top||0)+(c.top||0))+"px"); obaFit(); try{ fit(); }catch(_){} };
     if(W.isVersionAtLeast&&W.isVersionAtLeast("8.0")&&/android|iphone|ipad/i.test(navigator.userAgent)&&W.requestFullscreen) W.requestFullscreen(); if(W.lockOrientation) W.lockOrientation(); /* 8.11: только вертикально */
     setTimeout(cloudPull,600); /* 8.11 */ si(); if(W.onEvent){ ["safeAreaChanged","contentSafeAreaChanged","fullscreenChanged","viewportChanged"].forEach(e=>W.onEvent(e,si)); } }catch(e){} };
   if(window.Telegram&&Telegram.WebApp) go(); else { const s=document.createElement("script"); s.src="https://telegram.org/js/telegram-web-app.js"; s.onload=go; document.head.appendChild(s); } })();
