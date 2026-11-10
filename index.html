@@ -2031,7 +2031,7 @@ async function init(){
   comb=new PIXI.Sprite(combTex()); comb.width=RUG.w+16; comb.height=COMBH(); comb.x=RUG.x-8; L_loom.addChild(comb);
   buildLight();
   ready=true; applyLite(); app.ticker.add(()=>{ fpsWatch(); perfTick(); if(SH&&SH.dirty){ SH.dirty=false; SH.tex.source.update(); } if(!S||curLi<0) return; const T=f=>{ try{ f(); }catch(e){ if(!window.__tkErr){ window.__tkErr=1; console.warn(e); } } }; /* 5.11: сбой одной анимации не должен останавливать сверку мотков */ T(()=>{ if(!SH) drawWeft(); else if(weftG) weftG.clear(); }); T(drawGlow); T(animGust); T(animLight); });
-  if(S) level(); if(typeof render==="function") render(); }
+  if(S){ level(); if(typeof render==="function") render(); } } /* 11.11: без узора render() падал (5 ошибок «reading li» у мамы автора при запуске) */
 function stageScale(){ return Math.min(innerWidth/W,innerHeight/H); }
 /* новый узор (или перезапуск): всё с нуля */
 function level(){ if(!ready) return; perfFlush(); gen++; endShag(); FX.length=0; killPend(); clearQ(); gsap.killTweensOf(R);
@@ -2064,11 +2064,17 @@ function sync(){ if(!ready||!S) return; if(!LY){ level(); return; }
   reconcile(true); drawBasket(); syncLift(); syncOverlays(); syncNeed(); }
 /* 2.11 (отзыв тестера): мотки цвета, которого станку больше не нужно, бледнеют — их собирать не обязательно */
 /* 2.11 (отзыв тестера «пустое место на веретене»): моток, у которого прервали полёт, остаётся скрытым под верёвкой — показываем его */
-function fixPlace(){ if(!S||!LY||S.done) return; let busy=false; SP.forEach(a=>a&&a.forEach(s=>{ if(s&&!s.destroyed&&(s._fly||s._st||(s._rtw&&s._rtw.isActive())||gsap.getTweensOf(s).some(w=>w!==s._idle&&(w.isActive()||w.progress()<1)))) busy=true; })); if(busy||FX.length) return;
+/* 11.11 (мама автора, узор 136: моток на правом веретене не виден 12 с): раньше один «занятый» моток где угодно запрещал проверку всех веретён;
+   теперь проверяется каждое веретено отдельно, а «занятость» дольше 3 с не считается. Каждая починка уходит в статистику (событие fix). */
+const busyT=new WeakMap();
+function skBusy(s){ const b=!!(s._fly||s._st||(s._rtw&&s._rtw.isActive())||gsap.getTweensOf(s).some(w=>w!==s._idle&&(w.isActive()||w.progress()<1)));
+  if(!b){ busyT.delete(s); return false; } const n=performance.now(), t0=busyT.get(s); if(!t0){ busyT.set(s,n); return true; } return n-t0<3000; }
+function fixPlace(){ if(!S||!LY||S.done||FX.length) return;
   if(SP.length!==S.tubes.length){ reconcile(false); return; }
-  S.tubes.forEach((b,t)=>{ const a=SP[t]||[]; const bad=a.length!==b.length||a.some((s,k)=>{ if(!s||s.destroyed) return true; const q=skPos(t,k), up=(t===liftSt.t&&k>=a.length-liftSt.run)?15:0; /* 4.11 (отчёт тестера): поднятый выбранный моток — не «сбой» */ return s.cf!==b[k]||!s.parent||Math.abs(s.y-(q.y-up))>6||Math.abs(s.x-q.x)>8; }); if(bad){ (window.__fixLog=window.__fixLog||[]).push(["place",t,a.length,b.length,a.map(s=>s&&!s.destroyed?[s.cf,Math.round(s.x),Math.round(s.y),!!s.parent]:null),b.map((c,k)=>{const q=skPos(t,k);return [c,Math.round(q.x),Math.round(q.y)];})]); rebuildTube(t,false); fixN++; if(t===liftSt.t){ liftSt.t=-1; syncLift(); } } }); }
+  S.tubes.forEach((b,t)=>{ const a=SP[t]||[]; if(a.some(s=>s&&!s.destroyed&&skBusy(s))) return; const bad=a.length!==b.length||a.some((s,k)=>{ if(!s||s.destroyed) return true; const q=skPos(t,k), up=(t===liftSt.t&&k>=a.length-liftSt.run)?15:0; /* 4.11 (отчёт тестера): поднятый выбранный моток — не «сбой» */ return s.cf!==b[k]||!s.parent||Math.abs(s.y-(q.y-up))>6||Math.abs(s.x-q.x)>8; }); if(bad){ (window.__fixLog=window.__fixLog||[]).push(["place",t,a.length,b.length,a.map(s=>s&&!s.destroyed?[s.cf,Math.round(s.x),Math.round(s.y),!!s.parent]:null),b.map((c,k)=>{const q=skPos(t,k);return [c,Math.round(q.x),Math.round(q.y)];})]); rebuildTube(t,false); fixN++; fixEv("place",t); if(t===liftSt.t){ liftSt.t=-1; syncLift(); } } }); }
 let fixN=0;
-let fhT=0; function fixHidden(){ if(window.NOFIX||!S||S.done) return; const fl=(w,sp)=>{ fixN++; (window.__fixLog=window.__fixLog||[]).push([w,sp.cf]); };
+let fixSent=0, fixLi=-1; function fixEv(w,x){ try{ if(fixLi!==S.li){ fixLi=S.li; fixSent=0; } if(fixSent++<3&&typeof ev==="function") ev("fix",{w,x,m:S.moves}); }catch(e){} }
+let fhT=0; function fixHidden(){ if(window.NOFIX||!S||S.done) return; const fl=(w,sp)=>{ fixN++; fixEv(w,sp.cf); (window.__fixLog=window.__fixLog||[]).push([w,sp.cf]); };
   SP.forEach(arr=>arr&&arr.forEach(sp=>{ if(!sp||sp.destroyed||sp.gone) return;
     /* 5.11 (отчёт автора «моток пропал»): полёт, который уже не идёт, не должен держать моток скрытым */
     if(sp._fly&&(!sp._fly.parent||sp._fly.progress()>=1)){ sp._fly=null; }
@@ -3461,7 +3467,7 @@ function fldTut(p){ const f=$("obaFld"); if(!f||f.hidden) return;
 /* 3.11 (R7-076): аналитика — каждое действие игрока пишется в очередь событий (localStorage) и пачками уходит на приёмник STAT_URL.
    Без личных данных: случайный номер игрока и номер сессии. Сбой аналитики никогда не ломает игру. */
 const STAT_URL="https://script.google.com/macros/s/AKfycbzQ12w9_v_ASyYJm5CPw8Mp8ImUUYiG_m-bcldBklEimZ8pL_NfkEXKT3fhwDUYCccF/exec"; /* адрес приёмника (Google Apps Script → лист «События»); пусто — события копятся в игре и уходят в «Отчёт для автора» */
-const STAT_VER="v133"; /* 10.11: шапка Telegram, подсказка «тугой станок», t54 */ /* 8.11: проверка перед тестерами */
+const STAT_VER="v134"; /* 10.11: шапка Telegram, подсказка «тугой станок», t54 */ /* 8.11: проверка перед тестерами */
 const EVK="uzory-evq"; let EVQ=[], evN=0, evSess=Math.random().toString(36).slice(2,8), evT0=Date.now(), lvT0=0, mvT=0;
 try{ EVQ=JSON.parse(localStorage.getItem(EVK)||"[]"); }catch(_){ EVQ=[]; }
 function evPid(){ try{ if(!G.pid){ G.pid=Math.random().toString(36).slice(2,10); saveG(); } return G.pid; }catch(_){ return "?"; } }
