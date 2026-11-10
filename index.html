@@ -2162,10 +2162,11 @@ function hintText(){ hintCard=false;
   if(S.mode==="vat") return _S("abt50s","<em>Чан:</em> нажми веретено с белыми мотками сверху — они станут цвета чана. Или смени цвет чана (")+(dvorLv()>=1&&G.res.dye>=1?_S("f2t3bz","1 🎨 краска"):_S("jkt3s9","1 ход"))+"):"+`<div class="vchoice">${[...new Set(S.need.slice(S.ni))].filter(c=>c!==S.vat).map(c=>`<button data-vc="${c}">${chip(c,false)}</button>`).join("")}</div>`;
   if(G.year>=2&&S.knots.length&&!G.seenCh.washK&&(G.items.water||0)>0) return _S("dbn6w9","<em>Чёрная нить</em> завязала веретено. Узел снимется, если собрать веретено рядом с ним. Или смой его белой водой: нажми «💧 Смыть», потом веретено с узлом. Воду даёт Родник — по кувшину в день.");
   /* 7.11 (R7-118): склад узора объясняется в первый раз, раньше прочих подсказок; после 4 ходов считается показанным */
-  { const sk=L.sklad==="pair"?"pair":S.cover?"sack":(L.sklad||"").startsWith("tight")?"tight":null;
+  { const sk=L.sklad==="pair"?"pair":S.cover?"sack":(L.sklad||"").startsWith("tight")?"tight":CAP>4?"cap"+CAP:null; /* 10.11: мама автора, узор 110 — на веретене 4 одинаковых мотка, а не собралось: у большого ковра веретено на 5, об этом не говорилось */
     if(sk&&!G.seenCh["sk_"+sk]){ if(S.moves>=4){ G.seenCh["sk_"+sk]=true; saveG(); }
       else if((hintCard=true)) return sk==="pair"?_S("19nlld4","<em>Ряд парой:</em> станок берёт два цвета ряда только вместе. Собранное веретено ждёт свою пару и стоит занятым.")
         :sk==="sack"?_S("onm5ng","<em>Мешок купца:</em> нижние мотки под мешковиной. Цвет откроется, когда моток окажется сверху.")
+        :sk.startsWith("cap")?_T("1c24gds")`<em>${CAP>5?_S("1rjcogc","Высокая основа"):_S("18c8d8t","Большой ковёр")}:</em> веретено держит ${CAP===5?_S("675y1p","пять"):_S("179m1sb","шесть")} мотков. Собрано, когда на нём ${CAP===5?_S("675y1p","пять"):_S("179m1sb","шесть")} одного цвета.`
         :S.bsize?_S("623ai7","<em>Тесный станок:</em> пустое веретено одно — думай на ход вперёд."):_S("1ow9bde","<em>Тесный станок:</em> пустое веретено одно, корзины нет — думай на ход вперёд."); } }
   if(whitesLeft()&&!G.seenCh.white&&S.moves<6) return tt.hWhite;
   const parts=[], early=S.moves<4;
@@ -3460,7 +3461,7 @@ function fldTut(p){ const f=$("obaFld"); if(!f||f.hidden) return;
 /* 3.11 (R7-076): аналитика — каждое действие игрока пишется в очередь событий (localStorage) и пачками уходит на приёмник STAT_URL.
    Без личных данных: случайный номер игрока и номер сессии. Сбой аналитики никогда не ломает игру. */
 const STAT_URL="https://script.google.com/macros/s/AKfycbzQ12w9_v_ASyYJm5CPw8Mp8ImUUYiG_m-bcldBklEimZ8pL_NfkEXKT3fhwDUYCccF/exec"; /* адрес приёмника (Google Apps Script → лист «События»); пусто — события копятся в игре и уходят в «Отчёт для автора» */
-const STAT_VER="v132"; /* 8.11: проверка перед тестерами */
+const STAT_VER="v133"; /* 10.11: шапка Telegram, подсказка «тугой станок», t54 */ /* 8.11: проверка перед тестерами */
 const EVK="uzory-evq"; let EVQ=[], evN=0, evSess=Math.random().toString(36).slice(2,8), evT0=Date.now(), lvT0=0, mvT=0;
 try{ EVQ=JSON.parse(localStorage.getItem(EVK)||"[]"); }catch(_){ EVQ=[]; }
 function evPid(){ try{ if(!G.pid){ G.pid=Math.random().toString(36).slice(2,10); saveG(); } return G.pid; }catch(_){ return "?"; } }
