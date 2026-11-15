@@ -2487,7 +2487,7 @@ function ornPopup(){ const tt=t(), Sc=SCHOOLS[G.school], L=Sc[G.lang]; G.seenCh.
   show(`<div class="eyebrow">${tt.ch.orn[0]}</div><h2>${tt.ornT}</h2><p>${tt.ornP(L[2],L[3],knotCost(G.school))}</p><div class="row"><button class="btn gold" id="ok">${tt.cont}</button></div>`);
   [0,2,4,5].forEach((i,n)=>tone(SC[i]*2,.6,n*.1,.08)); $("ok").onclick=hide; }
 function settings(){ const ru=G.lang==="ru";
-  show(_T("18scrdz")`<h2 id="setT">${ru?_S("1xs7fy","Настройки"):"Ayarlar"}</h2><div class="langs"><b>${_S("18nep1q","Язык")}</b>${UI_LANGS.map(l=>`<button class="lgb${l===UI?" on":""}" data-l="${l}">${LNAME[l]}</button>`).join("")}</div><div class="row"><button class="btn" id="sRep">Сообщить об ошибке</button></div><div class="set">
+  show(_T("1yv8k9")`<h2 id="setT">${ru?_S("1xs7fy","Настройки"):"Ayarlar"}</h2><div class="langs"><b>${_S("18nep1q","Язык")}</b>${UI_LANGS.map(l=>`<button class="lgb${l===UI?" on":""}" data-l="${l}">${LNAME[l]}</button>`).join("")}</div><div class="row"><button class="btn" id="sRep">Сообщить об ошибке</button></div><div class="set">
     <label>${ru?_S("1nc92tj","Звуки"):"Səslər"}<input type="checkbox" id="sSnd" ${G.sound?"checked":""}></label>
     <label>${ru?_S("1hgczrt","Вибрация"):"Vibrasiya"}<input type="checkbox" id="sVib" ${G.vib!==false?"checked":""}></label>
     <label><span>${ru?_S("ga8fvw","Знаки цвета"):"Rəng işarələri"}<small>${ru?_S("sjapqm","фигура на бирке каждого мотка: ◆ Марена, ● Индиго, ▲ Шафран, ■ Молочная, ▬ Зелень"):"hər yumaqda nişan — rəngləri ayırmaq çətindirsə"}</small></span><input type="checkbox" id="sGly" ${G.tags!==false?"checked":""}></label>
@@ -2496,7 +2496,8 @@ function settings(){ const ru=G.lang==="ru";
     <label><span>${ru?_S("1g82c79","Автострижка ворса"):"Xovun avtomatik kəsilməsi"}<small>${ru?_S("12u01cy","ковёр подстригается сам, без ножниц"):"xalça qayçısız özü kəsilir"}</small></span><input type="checkbox" id="sAuto" ${G.autoShear?"checked":""}></label>
     <label><span>Отправлять статистику<small>какие узоры трудные и где игра ломается — без имени и личных данных</small></span><input type="checkbox" id="sStat" ${G.noStat?"":"checked"}></label>
     <label><span>Подсказка «окрасить»<small>строка над веретёнами: сколько белых мотков в какой цвет. Без неё — считай сам</small></span><input type="checkbox" id="sDyeH" ${dyeHintOn()?"checked":""}></label>
-  </div><div class="row"><button class="btn gold" id="sOk">${ru?_S("1e0jmys","Готово"):"Hazır"}</button></div><button class="linkbtn" id="sReset">${ru?_S("ihplx5","Начать игру заново"):"Oyuna yenidən başla"}</button>`);
+  </div><div class="row"><button class="btn gold" id="sOk">${ru?_S("1e0jmys","Готово"):"Hazır"}</button></div><button class="linkbtn" id="sPriv">${ru?_S("poshhb","Как игра обращается с данными"):"Oyun məlumatlarla necə davranır"}</button><button class="linkbtn" id="sReset">${ru?_S("ihplx5","Начать игру заново"):"Oyuna yenidən başla"}</button>`); /* 16.11 Z10-004: ссылка на политику gokand.com/privacy */
+  $("sPriv").onclick=()=>{ const u="https://gokand.com/privacy"; try{ const W=window.Telegram&&Telegram.WebApp; if(W&&W.openLink&&W.initData) W.openLink(u); else window.open(u,"_blank","noopener"); }catch(e){ window.open(u,"_blank","noopener"); } };
   $("sSnd").onchange=e=>{ G.sound=e.target.checked; saveG(); if(view!=="home") render(); };
   $("sMus").onchange=e=>{ G.music=e.target.checked; saveG(); SN.musicSync(); };
   { let n=0; $("setT").onclick=()=>{ if(++n>=7) avtor(); }; }
