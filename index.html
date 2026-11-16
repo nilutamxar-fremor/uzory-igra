@@ -1496,15 +1496,14 @@ function shp(x,c,cx,cy,r,fill){ x.save(); x.fillStyle=fill; x.beginPath();
   else if(c===3){ x.rect(cx-r*.68,cy-r*.68,r*1.36,r*1.36); }
   else if(c===4){ x.roundRect(cx-r*.95,cy-r*.36,r*1.9,r*.72,r*.2); }
   x.closePath(); x.fill(); x.restore(); }
-const tagsOn=()=>!G||G.tags!==false;
+const tagsOn=()=>!!G&&G.tags===true; /* 16.11 (R7-134): знаки цвета по умолчанию выключены у всех; включаются в настройках */
 /* 16.11 (V7-038, V7-039): мотки v2 — «подтянутая пасма» */
 const SK2=true, SKMOVE=false; const sk2=()=>SK2, skMove=()=>SKMOVE; /* 16.11 (R7-131, v135): SK2 — новый вид мотков (тоньше и уже, зазор между колонками, тихая бирка, подъём 22, контур выбранного) — один для всех, без выключателя в настройках. Вернуть прежний вид: SK2=false (полная копия v134 — D «Онлайн игра\\Узоры - система v134 до новых мотков»). SKMOVE — новое движение (сжатие севшего мотка, вытягивание в полёте, покачивание на «нельзя»): ждёт «да» автора, шаг 2 */
 const LIFT=()=>sk2()?22:15;
 function qH(big){ return sk2()?(big?32:23):(big?SKH:QH); }
 function skW(){ return sk2()?LY.sw+2:LY.sw+4; }
 function skH(){ return sk2()?Math.max(30,Math.min(34,Math.round(LY.sw*.53))):SKH+4; }
-function tagDraw(x,c,bx,by,br){ x.save(); x.shadowColor="rgba(0,0,0,.45)"; x.shadowBlur=1.2; x.beginPath(); x.arc(bx,by,br,0,7); x.fillStyle="rgba(52,33,20,.9)"; x.fill(); x.restore();
-  x.beginPath(); x.arc(bx,by,br-.35,0,7); x.strokeStyle="rgba(236,214,170,.55)"; x.lineWidth=.5; x.stroke(); shp(x,c,bx,by,br*.6,"#f4e6c4"); }
+function tagDraw(x,c,bx,by,br){ /* 16.11 (R7-134): без круга — сама фигура, светлая с тёмной обводкой: в круге все знаки сливались */ x.save(); x.shadowColor="rgba(0,0,0,.6)"; x.shadowBlur=1.4; shp(x,c,bx,by,br*1.12,"rgba(40,24,14,.95)"); x.restore(); shp(x,c,bx,by,br*.82,"#fbf0d2"); }
 function skeinCanvas(c,w,h,v2){
   const cw=w*TS, ch=h*TS, cv=mk(cw+12,ch+12), x=cv.getContext("2d"), r=rng(100+c*17+w); x.translate(6,6); x.scale(TS,TS);
   const raw=c===WH, base=hexOf(c);
@@ -2507,7 +2506,7 @@ function settings(){ const ru=G.lang==="ru";
   show(_T("1yv8k9")`<h2 id="setT">${ru?_S("1xs7fy","Настройки"):"Ayarlar"}</h2><div class="langs"><b>${_S("18nep1q","Язык")}</b>${UI_LANGS.map(l=>`<button class="lgb${l===UI?" on":""}" data-l="${l}">${LNAME[l]}</button>`).join("")}</div><div class="row"><button class="btn" id="sRep">Сообщить об ошибке</button></div><div class="set">
     <label>${ru?_S("1nc92tj","Звуки"):"Səslər"}<input type="checkbox" id="sSnd" ${G.sound?"checked":""}></label>
     <label>${ru?_S("1hgczrt","Вибрация"):"Vibrasiya"}<input type="checkbox" id="sVib" ${G.vib!==false?"checked":""}></label>
-    <label><span>${ru?_S("ga8fvw","Знаки цвета"):"Rəng işarələri"}<small>${ru?_S("sjapqm","фигура на бирке каждого мотка: ◆ Марена, ● Индиго, ▲ Шафран, ■ Молочная, ▬ Зелень"):"hər yumaqda nişan — rəngləri ayırmaq çətindirsə"}</small></span><input type="checkbox" id="sGly" ${G.tags!==false?"checked":""}></label>
+    <label><span>${ru?_S("ga8fvw","Знаки цвета"):"Rəng işarələri"}<small>${ru?_S("sjapqm","фигура на бирке каждого мотка: ◆ Марена, ● Индиго, ▲ Шафран, ■ Молочная, ▬ Зелень"):"hər yumaqda nişan — rəngləri ayırmaq çətindirsə"}</small></span><input type="checkbox" id="sGly" ${G.tags===true?"checked":""}></label>
     <label>${ru?_S("1heakwo","Музыка"):"Musiqi"}<input type="checkbox" id="sMus" ${G.music!==false?"checked":""}></label>
     <label><span>Лёгкая графика<small>меньше света и блеска — быстрее на старых телефонах</small></span><input type="checkbox" id="sLite" ${G.lite?"checked":""}></label>
     <label><span>${ru?_S("1g82c79","Автострижка ворса"):"Xovun avtomatik kəsilməsi"}<small>${ru?_S("12u01cy","ковёр подстригается сам, без ножниц"):"xalça qayçısız özü kəsilir"}</small></span><input type="checkbox" id="sAuto" ${G.autoShear?"checked":""}></label>
@@ -3485,7 +3484,7 @@ function fldTut(p){ const f=$("obaFld"); if(!f||f.hidden) return;
 /* 3.11 (R7-076): аналитика — каждое действие игрока пишется в очередь событий (localStorage) и пачками уходит на приёмник STAT_URL.
    Без личных данных: случайный номер игрока и номер сессии. Сбой аналитики никогда не ломает игру. */
 const STAT_URL="https://script.google.com/macros/s/AKfycbzQ12w9_v_ASyYJm5CPw8Mp8ImUUYiG_m-bcldBklEimZ8pL_NfkEXKT3fhwDUYCccF/exec"; /* адрес приёмника (Google Apps Script → лист «События»); пусто — события копятся в игре и уходят в «Отчёт для автора» */
-const STAT_VER="v135"; /* 16.11: новый вид мотков (R7-131), починка «моток сел невыбранным» */ /* 10.11: шапка Telegram, подсказка «тугой станок», t54 */ /* 8.11: проверка перед тестерами */
+const STAT_VER="v136"; /* 16.11: новый вид мотков (R7-131), починка «моток сел невыбранным» */ /* 10.11: шапка Telegram, подсказка «тугой станок», t54 */ /* 8.11: проверка перед тестерами */
 const EVK="uzory-evq"; let EVQ=[], evN=0, evSess=Math.random().toString(36).slice(2,8), evT0=Date.now(), lvT0=0, mvT=0;
 try{ EVQ=JSON.parse(localStorage.getItem(EVK)||"[]"); }catch(_){ EVQ=[]; }
 function evPid(){ try{ if(!G.pid){ G.pid=Math.random().toString(36).slice(2,10); saveG(); } return G.pid; }catch(_){ return "?"; } }
