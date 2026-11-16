@@ -130,6 +130,8 @@ body{background:var(--night);background-image:radial-gradient(120% 80% at 50% 0%
 .harv .lost{font-size:.8rem;color:var(--bad)}
 .linkbtn{background:none;border:0;color:var(--bone-dim);text-decoration:underline;font:inherit;font-size:.74rem;cursor:pointer}
 .xcl{position:sticky;top:-4px;align-self:flex-end;margin:-6px -6px -40px 0;z-index:5;width:36px;height:36px;flex:none;border-radius:50%;border:1px solid rgba(120,85,45,.45);background:rgba(243,235,221,.95);color:#2b1d12;font:600 16px/1 Georgia,serif;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+
+#sPriv{display:block;margin:4px auto 0;min-height:36px;padding:8px 12px} /* 16.11: ссылка на политику данных — под палец (t47, планшет 768×1024) */
 /* ---------- экран узора: стиль А «Гуашь и войлок», раскладка А3 (R7-038, R7-039) ---------- */
 #play.playwrap{position:fixed;inset:0;background:#151b30;overflow:hidden;z-index:1;padding:0;margin:0}
 #stage{position:absolute;left:50%;top:50%;width:390px;height:844px;transform-origin:center center;font-family:var(--ui);color:#3a2817}
@@ -1495,15 +1497,25 @@ function shp(x,c,cx,cy,r,fill){ x.save(); x.fillStyle=fill; x.beginPath();
   else if(c===4){ x.roundRect(cx-r*.95,cy-r*.36,r*1.9,r*.72,r*.2); }
   x.closePath(); x.fill(); x.restore(); }
 const tagsOn=()=>!G||G.tags!==false;
-function skeinCanvas(c,w,h){
+/* 16.11 (V7-038, V7-039): мотки v2 — «подтянутая пасма» */
+const SK2=true, SKMOVE=false; const sk2=()=>SK2, skMove=()=>SKMOVE; /* 16.11 (R7-131, v135): SK2 — новый вид мотков (тоньше и уже, зазор между колонками, тихая бирка, подъём 22, контур выбранного) — один для всех, без выключателя в настройках. Вернуть прежний вид: SK2=false (полная копия v134 — D «Онлайн игра\\Узоры - система v134 до новых мотков»). SKMOVE — новое движение (сжатие севшего мотка, вытягивание в полёте, покачивание на «нельзя»): ждёт «да» автора, шаг 2 */
+const LIFT=()=>sk2()?22:15;
+function qH(big){ return sk2()?(big?32:23):(big?SKH:QH); }
+function skW(){ return sk2()?LY.sw+2:LY.sw+4; }
+function skH(){ return sk2()?Math.max(30,Math.min(34,Math.round(LY.sw*.53))):SKH+4; }
+function tagDraw(x,c,bx,by,br){ x.save(); x.shadowColor="rgba(0,0,0,.45)"; x.shadowBlur=1.2; x.beginPath(); x.arc(bx,by,br,0,7); x.fillStyle="rgba(52,33,20,.9)"; x.fill(); x.restore();
+  x.beginPath(); x.arc(bx,by,br-.35,0,7); x.strokeStyle="rgba(236,214,170,.55)"; x.lineWidth=.5; x.stroke(); shp(x,c,bx,by,br*.6,"#f4e6c4"); }
+function skeinCanvas(c,w,h,v2){
   const cw=w*TS, ch=h*TS, cv=mk(cw+12,ch+12), x=cv.getContext("2d"), r=rng(100+c*17+w); x.translate(6,6); x.scale(TS,TS);
   const raw=c===WH, base=hexOf(c);
   const pim=IMG["sk"+c];
   if(pim){ /* нарисованный моток (R7-041): спрайт + маленькая вышитая бляшка со знаком цвета */
     x.save(); x.fillStyle="rgba(0,0,0,.42)"; x.filter="blur(2px)"; x.beginPath(); x.ellipse(w/2,h-1.2,w*.44,2.8,0,0,7); x.fill(); x.restore();
     let iw=w*1.04, ih=Math.min(h*1.02,iw*pim.height/pim.width*1.12); if(raw){ ih=h*1.12; iw=Math.min(w*1.08,ih*pim.width/pim.height); }
+    if(v2&&!raw){ iw=w*1.03; ih=Math.min(h*1.03,iw*pim.height/pim.width*1.25); }
     x.drawImage(pim,(w-iw)/2,(h-ih)/2-.4,iw,ih);
     if(raw||!tagsOn()) return cv;
+    if(v2){ tagDraw(x,c,w*.81,h*.64,h*.2); return cv; }
     const br=Math.max(4,h*.25), bx=w*.8, by=h*.66; /* 7.11: бирка крупнее, фигура вместо буквы */
     x.save(); x.shadowColor="rgba(0,0,0,.5)"; x.shadowBlur=1.5; x.beginPath(); x.arc(bx,by,br,0,7); x.fillStyle="rgba(58,36,20,.88)"; x.fill(); x.restore();
     const tie=TIE[G.school??0]||TIE[0]; /* 2.11 (R7-064): обвязка бляшки — цвет школы */ x.beginPath(); x.arc(bx,by,br-.1,0,7); x.strokeStyle=tie; x.lineWidth=1.2; x.stroke(); x.beginPath(); x.arc(bx,by,br-.85,0,7); x.setLineDash([.9,.8]); x.strokeStyle="rgba(236,214,170,.85)"; x.lineWidth=.45; x.stroke(); x.setLineDash([]);
@@ -1531,9 +1543,9 @@ function skeinCanvas(c,w,h){
   x.fillStyle=raw?"rgba(95,85,70,.75)":(c===3?"rgba(90,70,40,.6)":"rgba(25,15,8,.48)");
   if(!raw&&tagsOn()) shp(x,c,w/2,h/2,h*.26,x.fillStyle);
   return cv; }
-function skTex(c){ const k=c+"|"+(G.school??0)+"|"+tagsOn(); return texCache[k]||(texCache[k]=PIXI.Texture.from(skeinCanvas(c,SKW,SKH))); }
+function skTex(c){ const v2=sk2(), k=c+"|"+(G.school??0)+"|"+tagsOn()+"|"+v2; return texCache[k]||(texCache[k]=PIXI.Texture.from(v2?skeinCanvas(c,64,c===WH?36:33,true):skeinCanvas(c,SKW,SKH))); }
 const urlCache={};
-function skURL(c){ const k=c+"|"+(G.school??0)+"|"+tagsOn(); return urlCache[k]||(urlCache[k]=skeinCanvas(c,40,21).toDataURL()); }
+function skURL(c){ const v2=sk2(), k=c+"|"+(G.school??0)+"|"+tagsOn()+"|"+v2; return urlCache[k]||(urlCache[k]=skeinCanvas(c,40,21,v2).toDataURL()); }
 
 /* ---------------- веретено (облик из «Караванного пути») ---------------- */
 const SKINC={wood:["#a77b49","#8b5c32"],bone:["#e2d6bb","#9c7a52"],gold:["#d6ad4c","#8a6424"],lacquer:["#a8352b","#5e1612"],silver:["#d2d8e2","#7d8597"]};
@@ -1592,11 +1604,11 @@ function lockTex(c){ if(lockCache[c]) return lockCache[c]; const w=66,h=20,cv=mk
 
 /* ---------------- раскладка веретён (зависит только от S) ---------------- */
 /* 7.11: высокие веретёна — мотки плотнее (как пряжа в стопке); 6 и выше — в один ряд, ниже над кнопками */
-function layout(){ const n=S.tubes.length, tall=CAP>=6, rows=n<=6||tall?1:2, per=Math.ceil(n/rows), sp=Math.min(74,374/per), sw=Math.min(SKW,Math.floor(sp-4));
-  const st=CAP>=6?Math.min(36,Math.floor(290/CAP)):CAP===5?27:SKH+1;
+function layout(){ const n=S.tubes.length, tall=CAP>=6, rows=n<=6||tall?1:2, per=Math.ceil(n/rows), sp=Math.min(74,374/per), sw0=Math.min(SKW,Math.floor(sp-4)), v2=sk2(), sw=v2?Math.min(SKW,Math.floor(sp*.92)):sw0;
+  const h2=Math.max(30,Math.min(34,Math.round(sw*.53))) /* 16.11: не мельче 30 — иначе «высокая основа» (7 веретён в ряд) мельчала на четверть */, st=v2?(CAP>=6?Math.min(h2+3,Math.floor(290/CAP)):Math.min(h2-1,CAP===5?27:99)):(CAP>=6?Math.min(36,Math.floor(290/CAP)):CAP===5?27:SKH+1);
   const pos=[]; for(let i=0;i<n;i++){ const row=rows===2&&i>=per?1:0, inRow=row?n-per:per, col=row?i-per:i;
     const x=W/2+(col-(inRow-1)/2)*sp, base=rows===1?(CAP>=5?712:610):(row?712:536); pos.push({x,base}); }
-  return {n,rows,per,sp,sw,pos,cap:CAP,st}; }
+  return {n,rows,per,sp,sw,sw0,pos,cap:CAP,st}; }
 const COLX=t=>LY.pos[t].x, BASEY=t=>LY.pos[t].base;
 const skPos=(t,k)=>({x:COLX(t), y:BASEY(t)-20-k*LY.st});
 const tubeTopY=t=>BASEY(t)-20-LY.cap*LY.st;
@@ -1690,7 +1702,7 @@ let lastTone=0;
 function toneLike(f,w,v){ const now=performance.now(); if(!w&&now-lastTone<80) return; lastTone=now; const k=f>=780?"star":(f>=500?"done":"soft"); setTimeout(()=>play(k,k==="star"?.16:.22,1),(w||0)*1000); }
 
 /* ---------------- эффекты ---------------- */
-function makeSk(c,w){ const s=new PIXI.Sprite(skTex(c)); s.cc=c; s.anchor.set(.5); s.width=(w||LY.sw)+4; s.height=SKH+4; if(IMG["sk"+c]){ if(!tagsOn()&&Math.random()<.5) s.scale.x*=-1; /* 7.11: с бирками не зеркалим — бирка всегда справа */ s.rotation=(Math.random()-.5)*.1; const v=Math.round(245+Math.random()*10); s.tint=(v<<16)|(v<<8)|v; } s.bs={x:s.scale.x,y:s.scale.y}; s.c=c; s.cf=c;
+function makeSk(c,w){ const s=new PIXI.Sprite(skTex(c)); s.cc=c; s.anchor.set(.5); s.width=w?w+4:skW(); s.height=(sk2()&&c===WH)?Math.round(skH()*1.1):skH(); if(IMG["sk"+c]){ if(!tagsOn()&&Math.random()<.5) s.scale.x*=-1; /* 7.11: с бирками не зеркалим — бирка всегда справа */ s.rotation=(Math.random()-.5)*.1; const v=Math.round(245+Math.random()*10); s.tint=(v<<16)|(v<<8)|v; s._tv=v; } s.bs={x:s.scale.x,y:s.scale.y}; s.c=c; s.cf=c;
   if(false&&G&&G.glyph&&DYES[c]){ /* 7.11: крупная буква поверх мотка заменена биркой-фигурой */ const g=new PIXI.Text({text:DYES[c].g,style:{fontFamily:"Georgia",fontSize:15,fontWeight:"700",fill:0xffffff,stroke:{color:0x1a1008,width:4}}}); g.anchor.set(.5); g.scale.set(1/Math.abs(s.scale.x),1/s.scale.y); s.addChild(g); }
   L_sk.addChild(s); return s; }
 /* 2.11 (по видео автора): мягкий моток — в полёте гнётся, при посадке обминается и оседает */
@@ -1704,12 +1716,12 @@ function killRope(s){ const r=s&&s._rope; if(!r) return; s._rope=null; gsap.kill
 function bendRope(r,sag){ if(!r||r.destroyed) return; const n=r.pts.length; r.pts.forEach((p,i)=>{ const u=2*i/(n-1)-1; p.y=sag*r.th*(1-u*u); }); }
 const MVD=.32; /* 8.11 вечер: полёт мотка 0,42 → 0,32 с — быстрые игроки не обгоняют анимацию */
 function fly(s,tx,ty,delay,dur,onLand,arc){
-  if(s._fly){ s._noSnap=true; s._fly.kill(); s._noSnap=false; s._fly=null; } if(s._st){ s._st.kill(); s._st=null; } killRope(s); stopIdle(s); /* 8.11 вечер: моток в полёте летит дальше с того места, где он сейчас, а не прыгает к старой цели */
+  if(s._fly){ s._noSnap=true; s._fly.kill(); s._noSnap=false; s._fly=null; } if(s._st){ s._st.kill(); s._st=null; } killRope(s); stopIdle(s); if(sk2()&&!s.destroyed){ gsap.killTweensOf(s.scale); gsap.killTweensOf(s,"rotation"); if(s.bs) s.scale.set(s.bs.x,s.bs.y); } /* 16.11: сплющивание и «нет» не спорят с полётом */ /* 8.11 вечер: моток в полёте летит дальше с того места, где он сейчас, а не прыгает к старой цели */
   const o={t:0}; let x0,y0,cx,cy;
   L_sk.addChild(s);
   return s._fly=gsap.to(o,{t:1,duration:dur,delay,ease:"sine.inOut",overwrite:false,
     onStart(){ if(s.destroyed){ x0=tx; y0=ty; cx=tx; cy=ty; return; } x0=s.x; y0=s.y; cx=(x0+tx)/2; cy=Math.min(y0,ty)-(arc??70); killRope(s); const r=mkRope(s); if(r){ s._rope=r; s.visible=false; } },
-    onUpdate(){ if(s.destroyed){ killRope(s); return; } const t=o.t,u=1-t; s.x=u*u*x0+2*u*t*cx+t*t*tx; s.y=u*u*y0+2*u*t*cy+t*t*ty; const lf=1+.07*Math.sin(t*Math.PI); s.rotation=Math.sin(t*Math.PI)*(tx>x0?.14:-.14); if(s.bs) s.scale.set(s.bs.x*lf,s.bs.y*lf);
+    onUpdate(){ if(s.destroyed){ killRope(s); return; } const t=o.t,u=1-t; s.x=u*u*x0+2*u*t*cx+t*t*tx; s.y=u*u*y0+2*u*t*cy+t*t*ty; const lf=1+.07*Math.sin(t*Math.PI); s.rotation=Math.sin(t*Math.PI)*(tx>x0?.14:-.14); if(s.bs){ if(skMove()) s.scale.set(s.bs.x*(1+.09*Math.sin(t*Math.PI)),s.bs.y*(1+.03*Math.sin(t*Math.PI))); else s.scale.set(s.bs.x*lf,s.bs.y*lf); }
       const r=s._rope; if(r&&!r.destroyed){ r.x=s.x; r.y=s.y; r.rotation=s.rotation*.6; bendRope(r,.34*Math.sin(t*Math.PI)); } },
     onInterrupt(){ s._fly=null; killRope(s); if(s.destroyed) return; if(s._noSnap){ s.visible=true; return; } s.x=tx; s.y=ty; s.rotation=0; if(s.bs) s.scale.set(s.bs.x,s.bs.y); s.visible=true; },
     onComplete(){ s._fly=null; if(s.destroyed) return; s.rotation=0; if(s.bs) s.scale.set(s.bs.x,s.bs.y);
@@ -1730,7 +1742,7 @@ function doneRing(x,y,hex){ const g=new PIXI.Graphics(); g.circle(0,0,22).stroke
 function dyeWave(s,c){ if(s.destroyed) return; const o=makeSk(c); o.x=s.x; o.y=s.y; const m=new PIXI.Graphics(); L_fx.addChild(m); o.mask=m; const st={r:0};
   play("dye",.35,1.1); splash(s.x,s.y+8,DYES[c].hex,7);
   gsap.to(st,{r:40,duration:.5,ease:"power2.out",onUpdate(){ if(s.destroyed||o.destroyed) return; m.clear().circle(s.x,s.y+SKH/2,st.r).fill(0xffffff); o.x=s.x; o.y=s.y; o.scale.copyFrom(s.scale); },
-    onComplete(){ if(!s.destroyed){ s.texture=skTex(c); s.c=c; s.cc=c; } if(!o.destroyed) o.destroy(); if(!m.destroyed) m.destroy(); }}); }
+    onComplete(){ if(!s.destroyed){ s.texture=skTex(c); s.c=c; s.cc=c; if(sk2()&&s.bs){ /* 16.11: некрашеный моток выше обычного и рисунок у него выше — после окраски возвращаем обычный размер, иначе он остаётся на 8 % выше соседей */ const sy=s.scale.y, fx=s.scale.x<0?-1:1; gsap.killTweensOf(s.scale); s.width=skW(); s.height=skH(); s.scale.x=fx*Math.abs(s.scale.x); s.bs={x:s.scale.x,y:s.scale.y}; if(!s._fly) gsap.fromTo(s.scale,{x:s.bs.x,y:sy},{x:s.bs.x,y:s.bs.y,duration:.2,ease:"power2.out",overwrite:true}); } } if(!o.destroyed) o.destroy(); if(!m.destroyed) m.destroy(); }}); }
 function splash(x,y,hex,n){ for(let i=0;i<n;i++){ const g=new PIXI.Graphics().circle(0,0,1.2+Math.random()*1.8).fill({color:num(hex),alpha:.9}); g.x=x; g.y=y; L_fx.addChild(g);
   const a=-Math.PI*Math.random(), d=10+Math.random()*16; gsap.to(g,{x:x+Math.cos(a)*d,y:y+Math.sin(a)*d+6,alpha:0,duration:.55+Math.random()*.3,ease:"power2.out",onComplete:()=>g.destroy()}); } }
 function rosette(x,y,hex){ const g=new PIXI.Graphics(); const col=num(hex);
@@ -1762,7 +1774,7 @@ function colFit(){ let n=0; while(slotY(n)>=COLTOP) n++; return n; }
 function qPos(k){ const fit=colFit(); if(k<fit) return {x:HOOKX,y:slotY(k),col:true};
   const j=k-fit; return {x:HOOKX+QW*.5+14+QW*.5+j*(QW+10),y:RUG.y+QH/2-2,col:false}; }
 const loomOn=()=>S&&LEVELS[S.li].kind!=="base";
-function mkQ(idx,x,y,big){ const s=new PIXI.Sprite(skTex(S.need[idx])); s.anchor.set(.5); s.width=big?SKW:QW; s.height=big?SKH:QH; s.x=x; s.y=y; s.idx=idx; s.c=S.need[idx]; L_weft.addChild(s); QS[idx]=s; return s; }
+function mkQ(idx,x,y,big){ const s=new PIXI.Sprite(skTex(S.need[idx])); s.anchor.set(.5); s.width=big?SKW:QW; s.height=big?qH(1):qH(0); s.x=x; s.y=y; s.idx=idx; s.c=S.need[idx]; L_weft.addChild(s); QS[idx]=s; return s; }
 function clearQ(){ for(const k in QS){ gsap.killTweensOf(QS[k]); gsap.killTweensOf(QS[k].scale); QS[k].destroy(); delete QS[k]; } L_weft.children.slice().forEach(c=>{ if(c!==weftG){ gsap.killTweensOf(c); if(c.scale) gsap.killTweensOf(c.scale); c.destroy(); } }); }
 const visQ=()=>Math.max(0,(S.qlen||3)-1);
 function syncQ(back){ const ni=niShown;
@@ -1783,7 +1795,7 @@ function drawWeft(){ if(!weftG) return; const t=performance.now()/1000; weftG.cl
   for(const k in QS){ const s=QS[k], i=+k; let tx=HOOKX, ty, big=false, vis=1;
     if(i===ni){ ty=hc; big=true; } else { const q=qPos(i-ni-1); tx=q.x; ty=q.y; }
     s.alpha+=(vis-s.alpha)*.18; const f=.16; s.x+=(tx-s.x)*f; const dy=ty-s.y; s.y+=dy*f;
-    const tw=big?SKW:QW, th=big?SKH:QH; s.width+=(tw-s.width)*f; s.height+=(th-s.height)*f;
+    const tw=big?SKW:QW, th=big?qH(1):qH(0); s.width+=(tw-s.width)*f; s.height+=(th-s.height)*f;
     s.rotation=Math.sin(t*1.8+i*1.3)*.035+Math.max(-.25,Math.min(.25,dy*.012)); }
   const tg=$("tag"), mo=$("more");
   if(!loomOn()){ mo.style.display="none"; const y=Math.max(RUG.y+14,frontY(R.shown)-24); tg.style.left="26px"; tg.style.top=Math.round(y-12)+"px"; return; }
@@ -1868,7 +1880,7 @@ function processFX(){ let tc=0;
     if(e.t==="mv"){ const a=SP[e.i], b=SP[e.j]; if(!a||!b) continue; const b0=b.length; let land=tc;
       if(e.wind) gustFx(COLX(e.i),tubeTopY(e.i),COLX(e.j),tubeTopY(e.j));
       for(let k=0;k<e.n;k++){ const s=a.pop(); if(!s) break; b.push(s); s.cf=e.cols[k]; const p=skPos(e.j,b0+k), d=tc+(e.wind?.25:0)+k*.06, dy=s.c!==s.cf;
-        fly(s,p.x,p.y,d,MVD,()=>{ const u=b[b.indexOf(s)-1]; if(u&&!u.destroyed&&u.bs) gsap.fromTo(u.scale,{x:u.bs.x*1.05,y:u.bs.y*.84},{x:u.bs.x,y:u.bs.y,duration:.45,ease:"power2.out"}); play(k?"soft":"land",k?.22:.32,.92+Math.random()*.16); if(s.c!==s.cf) dyeWave(s,s.cf); },e.wind?40:60); land=Math.max(land,d+MVD+(dy?.45:0)); }
+        fly(s,p.x,p.y,d,MVD,()=>{ const u=b[b.indexOf(s)-1]; if(u&&!u.destroyed&&u.bs) gsap.fromTo(u.scale,{x:u.bs.x*1.05,y:u.bs.y*.84},{x:u.bs.x,y:u.bs.y,duration:.45,ease:"power2.out"}); play(k?"soft":"land",k?.22:.32,.92+Math.random()*.16); if(skMove()&&!lite()&&!s.destroyed&&s.bs) gsap.fromTo(s.scale,{x:s.bs.x*1.07,y:s.bs.y*.9},{x:s.bs.x,y:s.bs.y,duration:.26,ease:"power2.out",overwrite:true}); if(s.c!==s.cf) dyeWave(s,s.cf); if(liftSt.t===e.j){ /* 16.11: веретено выбрали, пока моток летел, — поднимаем и его (раньше его через полсекунды «чинила» самопроверка) */ if(s._st){ s._st.kill(); s._st=null; } liftSt.run=-1; syncLift(); } },e.wind?40:60); land=Math.max(land,d+MVD+(dy?.45:0)); }
       tc=land; }
     else if(e.t==="cp"){ PF.cpT=performance.now(); const grp=SP[e.j]||[]; const c=e.c, x=COLX(e.j), top=tubeTopY(e.j);
       const ry=BASEY(e.j)-70; later(()=>{ doneRing(x,ry,DYES[c].hex); play("thread",.3,1.05); },(tc+MVD-.04)*1000);
@@ -1921,19 +1933,19 @@ function reconcile(fade){
 let spindles=[];
 function buildSpindles(){ spindles.forEach(s=>s.destroy()); spindles=[];
   const sp=spindleTex(LY.cap,70,G.skin||"wood",LY.st);
-  for(let t=0;t<LY.n;t++){ const s=new PIXI.Sprite(sp.tex); s.width=sp.w*(LY.sw/SKW); s.height=sp.h; s.anchor.set(.5,1); s.x=COLX(t); s.y=BASEY(t)+12; L_tubes.addChild(s); spindles.push(s); } }
+  for(let t=0;t<LY.n;t++){ const s=new PIXI.Sprite(sp.tex); s.width=sp.w*((LY.sw0||LY.sw)/SKW); s.height=sp.h; s.anchor.set(.5,1); s.x=COLX(t); s.y=BASEY(t)+12; L_tubes.addChild(s); spindles.push(s); } }
 function liftRun(){ if(S.sel<0) return 0; const one=S.mode==="gold"||(S.mode==="sp"&&SCHOOLS[G.school].tgt==="pair1"); return one?1:topRun(S.tubes[S.sel]); }
 function syncLift(){ const t=S.sel, run=liftRun();
   if(liftSt.t===t&&liftSt.run===run) return;
-  const lower=i=>{ if(!SP[i]) return; SP[i].forEach((s,k)=>{ if(s._fly) return; const p=skPos(i,k); gsap.to(s,{y:p.y,rotation:0,duration:.18,ease:"power2.out",overwrite:"auto"}); }); };
+  const lower=i=>{ if(!SP[i]) return; SP[i].forEach((s,k)=>{ if(s._fly) return; if(s._st){ s._st.kill(); s._st=null; } const p=skPos(i,k); gsap.to(s,{y:p.y,rotation:0,duration:.18,ease:"power2.out",overwrite:"auto"}); }); };
   if(liftSt.t>=0&&liftSt.t!==t) lower(liftSt.t);
-  if(t>=0&&SP[t]){ const a=SP[t]; a.forEach((s,k)=>{ if(s._fly) return; const p=skPos(t,k), on=k>=a.length-run; gsap.to(s,{y:p.y-(on?15:0),rotation:on?(k%2?.04:-.04):0,duration:on?.22:.18,ease:on?"back.out(2.5)":"power2.out",overwrite:"auto"}); }); if(run) play("land",.25,1.3); }
+  if(t>=0&&SP[t]){ const a=SP[t]; a.forEach((s,k)=>{ if(s._fly) return; if(s._st){ s._st.kill(); s._st=null; } /* 16.11: «оседание» после посадки длится дольше подъёма и опускало только что выбранный моток — потом его чинила самопроверка */ const p=skPos(t,k), on=k>=a.length-run; gsap.to(s,{y:p.y-(on?LIFT():0),rotation:on?(k%2?.04:-.04):0,duration:on?.22:.18,ease:on?"back.out(2.5)":"power2.out",overwrite:"auto"}); }); if(run) play("land",.25,1.3); }
   liftSt={t,run}; }
 let ovKey="";
 function syncOverlays(){ const key=JSON.stringify([S.knots,S.locks,S.donec,S.tubes.map(x=>x.length),LY.n,S.cover]); if(key===ovKey) return; ovKey=key;
   L_ov.removeChildren().forEach(c=>c.destroy());
-  if(S.cover) S.tubes.forEach((t,i)=>{ if(i>=LY.n) return; for(let k=0;k<Math.min(t.length,S.cover[i]||0);k++){ const p=skPos(i,k), s=new PIXI.Sprite(sackTex()); s.anchor.set(.5); s.width=LY.sw+6; s.height=SKH+3; s.x=p.x; s.y=p.y; L_ov.addChild(s); } });
-  S.knots.forEach(i=>{ if(i>=LY.n) return; const n=S.tubes[i].length; const p=skPos(i,Math.max(0,n-1)); const s=new PIXI.Sprite(knotTex()); s.anchor.set(.5); s.width=LY.sw+6; s.height=SKH+4; s.x=p.x; s.y=n?p.y:BASEY(i)-20; L_ov.addChild(s); });
+  if(S.cover) S.tubes.forEach((t,i)=>{ if(i>=LY.n) return; for(let k=0;k<Math.min(t.length,S.cover[i]||0);k++){ const p=skPos(i,k), s=new PIXI.Sprite(sackTex()); s.anchor.set(.5); s.width=skW()+2; s.height=skH()-1; s.x=p.x; s.y=p.y; L_ov.addChild(s); } });
+  S.knots.forEach(i=>{ if(i>=LY.n) return; const n=S.tubes[i].length; const p=skPos(i,Math.max(0,n-1)); const s=new PIXI.Sprite(knotTex()); s.anchor.set(.5); s.width=skW()+2; s.height=skH(); s.x=p.x; s.y=n?p.y:BASEY(i)-20; L_ov.addChild(s); });
   Object.keys(S.locks).forEach(k=>{ const i=+k; if(i>=LY.n||!lockOn(i)) return; const s=new PIXI.Sprite(lockTex(+S.locks[k])); s.anchor.set(.5); s.width=LY.sw+12; s.height=20; s.x=COLX(i); s.y=tubeTopY(i)-6; L_ov.addChild(s); });
   spindles.forEach((s,i)=>{ s.alpha=lockOn(i)?.55:1; }); }
 function gustIdx(){ return S.wind&&S.moves+1>=S.calm&&(S.moves+1)%S.wind===0&&!S.done?windSrcI():-1; }
@@ -1944,7 +1956,12 @@ function targetsNow(){ if(!S.mode) return null; const tg=S.mode==="sp"?SCHOOLS[G
     if(S.mode==="sp"){ return spellOpts().filter(o=>o[0]===S.sel).map(o=>o[1]); }
     return S.tubes.map((x,i)=>i!==S.sel&&x.length<CAP&&!blocked(i)&&!isDone(x)?i:-1).filter(i=>i>=0); }
   if(tg==="tube") return spellOpts(); return null; }
-function drawGlow(){ glowG.clear(); if(handSpr&&!handSpr.destroyed) handSpr.visible=false; if(!S||S.done) return; const t=performance.now()/1000, pul=.5+.5*Math.sin(t*3.2);
+function nope(i){ /* 16.11: запрещённый ход — веретено «качает головой»; только наклон, места не трогаем */ if(!skMove()||!SP||!SP[i]) return; SP[i].forEach((s,k)=>{ if(!s||s.destroyed||s._fly||s._idle) return; const d=k%2?1:-1; gsap.killTweensOf(s,"rotation"); gsap.fromTo(s,{rotation:0},{keyframes:[{rotation:.09*d,duration:.06},{rotation:-.07*d,duration:.08},{rotation:.04*d,duration:.06},{rotation:0,duration:.05}],overwrite:"auto"}); }); nopeT={i,t:performance.now()}; }
+let nopeT=null;
+function depthTint(){ if(!SP||!sk2()) return; SP.forEach(a=>a&&a.forEach((s,k)=>{ if(!s||s.destroyed||s._fly||!s._tv) return; const v=k<a.length-1?Math.round(s._tv*.93):s._tv, w=(v<<16)|(v<<8)|(v-(k<a.length-1?4:0)); if(s._dt!==w){ s._dt=w; s.tint=w; } })); } /* нижние мотки чуть темнее и теплее верхнего */
+function drawGlow(){ glowG.clear(); if(handSpr&&!handSpr.destroyed) handSpr.visible=false; if(!S||S.done) return; const t=performance.now()/1000, pul=.5+.5*Math.sin(t*3.2); depthTint();
+  if(sk2()&&liftSt.t>=0&&SP[liftSt.t]){ const a=SP[liftSt.t]; a.forEach((s,k)=>{ if(k<a.length-liftSt.run||!s||s.destroyed||s._fly) return; const w=skW()+6,h=skH()+4; glowG.roundRect(s.x-w/2,s.y-h/2,w,h,h/2).fill({color:0xfff0c4,alpha:.16+.1*pul}).stroke({width:2,color:0xfff0c4,alpha:.55+.3*pul}); }); }
+  if(nopeT){ const d=(performance.now()-nopeT.t)/350; if(d>=1||nopeT.i>=LY.n) nopeT=null; else glowG.ellipse(COLX(nopeT.i),BASEY(nopeT.i)+2,40,13).fill({color:0xd9553f,alpha:.35*(1-d)}); }
   const tg=targetsNow();
   if(tg){ tg.forEach(i=>{ if(i>=LY.n) return; const x=COLX(i), y=BASEY(i)+2; glowG.ellipse(x,y,40,13).stroke({width:3,color:0x9cc4ff,alpha:.5+.4*pul}); glowG.ellipse(x,y,34,10).fill({color:0x9cc4ff,alpha:.12+.12*pul}); }); return; }
   /* нужный станку цвет */
@@ -2071,7 +2088,7 @@ function skBusy(s){ const b=!!(s._fly||s._st||(s._rtw&&s._rtw.isActive())||gsap.
   if(!b){ busyT.delete(s); return false; } const n=performance.now(), t0=busyT.get(s); if(!t0){ busyT.set(s,n); return true; } return n-t0<3000; }
 function fixPlace(){ if(!S||!LY||S.done||FX.length) return;
   if(SP.length!==S.tubes.length){ reconcile(false); return; }
-  S.tubes.forEach((b,t)=>{ const a=SP[t]||[]; if(a.some(s=>s&&!s.destroyed&&skBusy(s))) return; const bad=a.length!==b.length||a.some((s,k)=>{ if(!s||s.destroyed) return true; const q=skPos(t,k), up=(t===liftSt.t&&k>=a.length-liftSt.run)?15:0; /* 4.11 (отчёт тестера): поднятый выбранный моток — не «сбой» */ return s.cf!==b[k]||!s.parent||Math.abs(s.y-(q.y-up))>6||Math.abs(s.x-q.x)>8; }); if(bad){ (window.__fixLog=window.__fixLog||[]).push(["place",t,a.length,b.length,a.map(s=>s&&!s.destroyed?[s.cf,Math.round(s.x),Math.round(s.y),!!s.parent]:null),b.map((c,k)=>{const q=skPos(t,k);return [c,Math.round(q.x),Math.round(q.y)];})]); rebuildTube(t,false); fixN++; fixEv("place",t); if(t===liftSt.t){ liftSt.t=-1; syncLift(); } } }); }
+  S.tubes.forEach((b,t)=>{ const a=SP[t]||[]; if(a.some(s=>s&&!s.destroyed&&skBusy(s))) return; const bad=a.length!==b.length||a.some((s,k)=>{ if(!s||s.destroyed) return true; const q=skPos(t,k), up=(t===liftSt.t&&k>=a.length-liftSt.run)?LIFT():0; /* 4.11 (отчёт тестера): поднятый выбранный моток — не «сбой» */ return s.cf!==b[k]||!s.parent||Math.abs(s.y-(q.y-up))>6||Math.abs(s.x-q.x)>8; }); if(bad){ (window.__fixLog=window.__fixLog||[]).push(["place",t,a.length,b.length,a.map(s=>s&&!s.destroyed?[s.cf,Math.round(s.x),Math.round(s.y),!!s.parent]:null),b.map((c,k)=>{const q=skPos(t,k);return [c,Math.round(q.x),Math.round(q.y)];})]); rebuildTube(t,false); fixN++; fixEv("place",t); if(t===liftSt.t){ liftSt.t=-1; syncLift(); } } }); }
 let fixN=0;
 let fixSent=0, fixLi=-1; function fixEv(w,x){ try{ if(fixLi!==S.li){ fixLi=S.li; fixSent=0; } if(fixSent++<3&&typeof ev==="function") ev("fix",{w,x,m:S.moves}); }catch(e){} }
 let fhT=0; function fixHidden(){ if(window.NOFIX||!S||S.done) return; const fl=(w,sp)=>{ fixN++; fixEv(w,sp.cf); (window.__fixLog=window.__fixLog||[]).push([w,sp.cf]); };
@@ -2146,7 +2163,7 @@ function finishShag(){ if(!SH||SH.fin) return; SH.fin=true; clearInterval(SH.idl
       const cb=sh.cb; setTimeout(()=>{ endShag(); cb&&cb(); },650); }}); }
 function shagAll(){ if(!SH||SH.fin) return; SH.move=performance.now(); finishShag(); }
 function active(on){ if(!app||!ready) return; if(on) app.ticker.start(); else app.ticker.stop(); }
-return {perfFlush,get _fixN(){return fixN},get _SP(){return SP},_skPos:(t,k)=>skPos(t,k),art:ART,bgFor,ambient,toneLike,musicSync,duck,init,sync,level,shear,shagPt,shagAll,shagPct,shagLift,endShag,get shearing(){return !!SH},hitZones,placeTut,markUndo,skURL,play,initSound,active,rosette,get L_fx(){return L_fx},get L_sk(){return L_sk},get app(){return app},get ready(){return ready;},LOADSTAT,applyLite};
+return {nope,perfFlush,get _fixN(){return fixN},get _SP(){return SP},_skPos:(t,k)=>skPos(t,k),art:ART,bgFor,ambient,toneLike,musicSync,duck,init,sync,level,shear,shagPt,shagAll,shagPct,shagLift,endShag,get shearing(){return !!SH},hitZones,placeTut,markUndo,skURL,play,initSound,active,rosette,get L_fx(){return L_fx},get L_sk(){return L_sk},get app(){return app},get ready(){return ready;},LOADSTAT,applyLite};
 })();
 
 
@@ -2314,10 +2331,10 @@ function tap(i){ if(S.done||S.lost) return;
       push("item:gold"); { const from=S.sel; putOn(S.tubes[i],S.tubes[from].pop()); FX.push({t:"mv",i:from,j:i,n:1,cols:[S.tubes[i][S.tubes[i].length-1]]}); } G.items.gold--; saveG(); S.mode=null; S.sel=-1; tone(784,.3); if(isDone(S.tubes[i])) complete(i); after(); }
     render(); return; }
   if(S.mode==="sp"){ if(spellOpts().includes(i)) castSpell(i); else SN.play("err",.2); return; }
-  if(S.sel<0){ if(ok(i)){ S.sel=i; hap("pick"); } else { SN.play("err",.2); hap("no"); } }
+  if(S.sel<0){ if(ok(i)){ S.sel=i; hap("pick"); } else { SN.play("err",.2); hap("no"); SN.nope&&SN.nope(i); } }
   else if(S.sel===i){ S.sel=-1; hap("tap"); }
   else if(canMove(S.sel,i)){ const L=LEVELS[S.li]; if(L.guide&&S.guideStep<L.guide.length&&L.guide[S.guideStep][0]===S.sel&&L.guide[S.guideStep][1]===i) S.guideStep++; else if(L.guide) S.guideStep=99; const dn=S.completed; move(S.sel,i); S.sel=-1; setTimeout(()=>hap("land"),300); if(S.completed>dn) setTimeout(()=>hap("ok"),480); }
-  else { if(ok(i)){ S.sel=i; hap("pick"); } else { S.sel=-1; SN.play("err",.2); hap("no"); } }
+  else { if(ok(i)){ S.sel=i; hap("pick"); } else { S.sel=-1; SN.play("err",.2); hap("no"); SN.nope&&SN.nope(i); } }
   render(); }
 function undo(){ if(!S.hist.length||S.done||S.lost) return; (S.trace=S.trace||[]).push(["u"]); const e=S.hist[S.hist.length-1];
   if(!e.tag&&!S.undos) return; S.hist.pop(); const wn0=S.wn||0, rav=S.rav; Object.assign(S,JSON.parse(e.s)); S.rav=rav;
@@ -3468,7 +3485,7 @@ function fldTut(p){ const f=$("obaFld"); if(!f||f.hidden) return;
 /* 3.11 (R7-076): аналитика — каждое действие игрока пишется в очередь событий (localStorage) и пачками уходит на приёмник STAT_URL.
    Без личных данных: случайный номер игрока и номер сессии. Сбой аналитики никогда не ломает игру. */
 const STAT_URL="https://script.google.com/macros/s/AKfycbzQ12w9_v_ASyYJm5CPw8Mp8ImUUYiG_m-bcldBklEimZ8pL_NfkEXKT3fhwDUYCccF/exec"; /* адрес приёмника (Google Apps Script → лист «События»); пусто — события копятся в игре и уходят в «Отчёт для автора» */
-const STAT_VER="v134"; /* 10.11: шапка Telegram, подсказка «тугой станок», t54 */ /* 8.11: проверка перед тестерами */
+const STAT_VER="v135"; /* 16.11: новый вид мотков (R7-131), починка «моток сел невыбранным» */ /* 10.11: шапка Telegram, подсказка «тугой станок», t54 */ /* 8.11: проверка перед тестерами */
 const EVK="uzory-evq"; let EVQ=[], evN=0, evSess=Math.random().toString(36).slice(2,8), evT0=Date.now(), lvT0=0, mvT=0;
 try{ EVQ=JSON.parse(localStorage.getItem(EVK)||"[]"); }catch(_){ EVQ=[]; }
 function evPid(){ try{ if(!G.pid){ G.pid=Math.random().toString(36).slice(2,10); saveG(); } return G.pid; }catch(_){ return "?"; } }
